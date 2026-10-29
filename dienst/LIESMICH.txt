@@ -1,0 +1,13 @@
+Netzdienst fuer den Emulator (MERIDIAN 816 Netzdienst, Version 1.7 vom 23.10.2026, (c) 2026 retro-modern.net,
+kostenlos nutzen und unveraendert weitergeben). Die Python-Dateien hier sind unveraendert aus dem Netzwerk-Paket des Cores;
+der Emulator startet draht.py selbst (Python 3.8+ noetig) und gibt ihm das DRAHT-Fenster (Bank $FD) als gemeinsame Datei.
+
+draht.py   Laufwerk 3 (Ordner sdcard/files) und die NET-Befehle
+wetter_dienst.py, nachrichten_dienst.py   Apps WEATHER und NEWS (und das Wetter in der Menueleiste) von HORIZONT
+radio_dienst.py, radio_bild.py, zeichensatz.bin   App RADIO (MP3-Dekoder: bin/mpg123, vom Emulator mit make gebaut; sonst ffmpeg)
+ablage_seite.py   Browser-Seite fuer ATLAS und Dateien hoch/runterladen (hier nur auf diesem Rechner: http://localhost:8816/)
+takjam_dienst.py  Netz-Jam von TAKTSTOCK
+sidjam_dienst.py, hvsc_index.py, orgelwandler.py, disk.py   SID JAM u. a. - SID JAM braucht die Programme sidkern und sidton
+                  fuer den Mac, die nicht beiliegen (im Paket nur als ARM-Programme fuer den MiSTer); es laeuft hier nicht.
+
+hvsc_index.tsv.gz  Verzeichnis der HVSC #85 fuer SID JAM allein; der Emulator legt es nach sdcard/HVSC/, wenn dort keines liegt.
