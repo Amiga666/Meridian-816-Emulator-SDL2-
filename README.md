@@ -128,7 +128,7 @@ Beispiele für FILE und DRAW (`C64GAMES.FIL`, `MERIDIAN.DRW`) legt der Emulator 
                                       nur Verfahren „gespeichert“ oder „deflate“); `hvsc.zip.liste` entsteht beim ersten Start daneben
 
 Mit einer anderen HVSC-Version den Index selbst bauen: `python3 dienst/hvsc_index.py bauen C64Music sdcard/HVSC/hvsc_index.tsv.gz`.
-SID JAM selbst braucht zusätzlich `sidkern` und `sidton` für den Mac (liegen nicht bei, beim Entwickler angefragt).
+SID JAM selbst braucht zusätzlich `sidkern` und `sidton` für den Mac.
 
 ## Ton
 
