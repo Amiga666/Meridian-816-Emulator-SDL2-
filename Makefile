@@ -7,7 +7,7 @@ CFLAGS  ?= -O2 -Wall -Wno-misleading-indentation
 SDLCFG  ?= sdl2-config
 SRC      = src/cpu65816.c src/meridian.c src/orgel.c src/dienst.c
 
-all: meridian dienst/bin/mpg123
+all: meridian dienst/bin/mpg123 dienst/bildwandler
 
 meridian: $(SRC) src/main.c src/meridian.h src/cpu65816.h src/orgel.h src/dienst.h src/version.h
 	$(CC) $(CFLAGS) $$($(SDLCFG) --cflags) -o $@ $(SRC) src/main.c $$($(SDLCFG) --libs)
@@ -20,5 +20,10 @@ dienst/bin/mpg123: tools/mpg123mini.c tools/minimp3.h
 	mkdir -p dienst/bin
 	$(CC) $(CFLAGS) -o $@ tools/mpg123mini.c -lm
 
+# Bildwandler (JPG/PNG/GIF fuer PICTURES, PAINT, WRITE und den Druck): der Netzdienst findet ihn neben bild_dienst.py.
+# Quelle und stb_image von Sean Barrett (Public Domain/MIT) liegen in tools/bildwandler/.
+dienst/bildwandler: tools/bildwandler/bildwandler.c tools/bildwandler/stb/stb_image.h tools/bildwandler/stb/stb_image_write.h
+	$(CC) -O2 -Wno-unused-function -o $@ tools/bildwandler/bildwandler.c -lm
+
 clean:
-	rm -f meridian meridian-headless dienst/bin/mpg123
+	rm -f meridian meridian-headless dienst/bin/mpg123 dienst/bildwandler

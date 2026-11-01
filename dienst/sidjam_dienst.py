@@ -109,6 +109,52 @@ def sidkern_finden():
     return None
 
 
+SIDKERN_TEXTE = [                           # sidkern meldet deutsch, die App zeigt englisch
+    (r"kein PSID/RSID", "NOT A SID FILE"),
+    (r"Datei zu kurz", "SID FILE TOO SHORT"),
+    (r"keine Ladeadresse", "SID FILE WITHOUT LOAD ADDRESS"),
+    (r"Lied (\d+) gibt es nicht \(1-(\d+)\)", r"NO SONG \1 (FILE HAS \2)"),
+    (r"No such file or directory", "SID FILE MISSING"),
+]
+
+
+def sidkern_meldung(p, cmd):
+    """warum sidkern keinen Strom geliefert hat: kurz fuer die Meldezeile
+    der App (48 Zeichen), ausfuehrlich ins Log - mit Groesse von sidkern
+    und SID-Datei, denn eine beim Aufspielen beschaedigte Datei (FTP im
+    ASCII-Modus) faellt sonst nicht auf"""
+    try:
+        rc = p.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        rc = None
+    try:
+        text = p.stderr.read().decode("utf-8", "replace").strip() if p.stderr else ""
+    except (OSError, ValueError):
+        text = ""
+
+    def groesse(pfad):
+        try:
+            with open(pfad, "rb") as f:
+                kopf = f.read(4)
+            return "%d bytes, %r" % (os.path.getsize(pfad), kopf)
+        except OSError as e:
+            return str(e)
+
+    print("JAM: sidkern ohne Strom: Rueckgabe %s, Meldung %r" % (rc, text[:300]), flush=True)
+    print("JAM:   Aufruf %s" % " ".join(cmd), flush=True)
+    print("JAM:   sidkern %s; SID-Datei %s" % (groesse(cmd[0]), groesse(cmd[1])), flush=True)
+    zeile = text.splitlines()[-1] if text else ""
+    for muster, ersatz in SIDKERN_TEXTE:
+        m = re.search(muster, zeile)
+        if m:
+            return "SIDKERN: " + m.expand(ersatz)
+    if rc is not None and rc < 0:
+        return "SIDKERN CRASHED (SIG %d) - REINSTALL" % -rc
+    if zeile:
+        return "SIDKERN: " + zeile.split(": ")[-1][:30]
+    return "SIDKERN: NO OUTPUT (EXIT %s)" % rc
+
+
 def sidton_finden():
     """reSID fuer den Klang "Original" (sidjam/ton)"""
     for p in (os.environ.get("SIDJAM_SIDTON", ""), os.path.join(HIER, "sidton"),
@@ -573,7 +619,13 @@ class Spieler:
             cmd += ["--ab", "%.3f" % ab]
         if a.get("modell"):
             cmd += ["--model", a["modell"]]
-        p = self.prozess(lauf, subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL))
+        # stderr bleibt offen: sidkern schreibt nur bei Fehlern dorthin, und
+        # ohne seine Begruendung hiess es bisher nur "kein SJE-Strom"
+        try:
+            p = self.prozess(lauf, subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE))
+        except OSError as e:                    # z. B. Exec format error: Datei beschaedigt
+            print("JAM: sidkern startet nicht:", e, "-", os.path.getsize(sk), "bytes", flush=True)
+            raise RuntimeError("SIDKERN WON'T START - REINSTALL IT") from None
         ton = None
         if a.get("resid"):                      # derselbe Strom ein zweites Mal, durch reSID
             with self.warm_lock:
@@ -581,7 +633,10 @@ class Spieler:
             ton = self.prozess(lauf, self.ton_holen(a.get("modell")))
             self.prozess(lauf, subprocess.Popen(cmd, stdout=ton.stdin, stderr=subprocess.DEVNULL))
             ton.stdin.close()
-        leser = SJELeser(p.stdout)
+        try:
+            leser = SJELeser(p.stdout)
+        except ValueError:
+            raise RuntimeError(sidkern_meldung(p, cmd)) from None
         k = leser.kopf
         if k.get("basic"):
             raise RuntimeError("needs BASIC")

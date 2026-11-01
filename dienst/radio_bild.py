@@ -82,8 +82,18 @@ def betraege(x):
 
 
 class Spektrum:
+    """Die App zeigt das Feld (Lesestelle - Vorrat in ihrer Schleife) / 256.
+    Ihre Schleife haelt bis zu 32 KB, der Ring nur 16 KB - auf dem Ringplatz
+    der hoerbaren Stelle liegen bei voller Schleife schon die naechsten
+    Samples, das Spektrum lief bis zu 1,4 s vor. Darum merken wir die
+    Spektren nach Sample seit dem Start und belegen jedes Feld erst mit dem
+    Block, der dort gerade klingt (zeigen()): fuer einen Vorrat zwischen
+    16 und 32 KB stimmt das genau, darunter ist es 0,7 s zu spaet."""
+
     def __init__(self, m):
         self.m = m
+        self.ring = RING                # Ringgroesse des Formats (radio_dienst: 16 KB oder 8 KB)
+        self.versatz = RING             # so weit liegt das Ohr mindestens hinter der Lesestelle
         self.puffer = []
         self.ref = 60.0                 # lautestes Band, langsam nachgefuehrt
         self.leeren()
@@ -91,14 +101,36 @@ class Spektrum:
     def leeren(self):
         self.m[SPEKTRUM:SPEKTRUM + 64 * 16] = bytes(64 * 16)
         self.puffer = []
+        self.gruppen = {}               # Sample seit Start // 1024 -> 16 Stufen
+        self.zuletzt = None
+
+    def zeigen(self, gelesen):
+        """gelesen: Samples, die die App seit dem Start aus dem Ring geholt hat"""
+        nf = self.ring // 256                 # Felder: eines je 256 Bytes im Ring (64 oder 32)
+        grenze = (gelesen - self.versatz) // 256   # juengster Block, der klingen kann
+        alt = self.zuletzt
+        if grenze == alt:
+            return
+        self.zuletzt = grenze
+        leer = bytes(16)
+        if alt is None or not 0 < grenze - alt < nf:
+            bloecke = [grenze - ((grenze - s) % nf) for s in range(nf)]   # alle Felder
+        else:
+            bloecke = range(alt + 1, grenze + 1)                            # nur die neuen
+        for b in bloecke:                     # Feld b % nf bekommt den juengsten Block <= grenze
+            f = SPEKTRUM + (b % nf) * 16
+            self.m[f:f + 16] = self.gruppen.get(b // 4, leer) if b >= 0 else leer
+        if grenze & 63 == 0:
+            for g in [g for g in self.gruppen if g < grenze // 4 - 20]:
+                del self.gruppen[g]
 
     def dazu(self, start, links, rechts):
-        """Samples ab Ring-Index start; gerechnet wird je 1024 Samples einmal,
-        ueber die letzten 256 davon (nur die werden umgewandelt)"""
+        """Samples ab start (gezaehlt seit dem Start); gerechnet wird je 1024
+        Samples einmal, ueber die letzten 256 davon (nur die werden umgewandelt)"""
         n = len(links)
         i = 0
         while i < n:
-            p = (start + i) & (RING - 1)
+            p = start + i
             in_gruppe = p & 1023
             if in_gruppe < 768:
                 i += min(768 - in_gruppe, n - i)
@@ -110,18 +142,15 @@ class Spektrum:
             i += k
             if in_gruppe + k == 1024:
                 if len(self.puffer) == 256:
-                    self.rechnen(((p + k - 1) & (RING - 1)) // 256)
+                    self.rechnen(p // 1024)
                 self.puffer = []
 
-    def rechnen(self, block):
+    def rechnen(self, gruppe):
         mag = betraege(self.puffer)
         db = [20 * math.log10(max(mag[lo:hi]) + 1) + NEIGUNG * b for b, (lo, hi) in enumerate(BAENDER)]
         self.ref = max(max(db), self.ref - 0.3)
         boden = self.ref - SPANNE
-        stufen = bytes(max(0, min(15, int((d - boden) * 15 / SPANNE))) for d in db)
-        for j in range(4):                  # die vier Bloecke dieser Gruppe
-            f = SPEKTRUM + ((block - j) & 63) * 16
-            self.m[f:f + 16] = stufen
+        self.gruppen[gruppe] = bytes(max(0, min(15, int((d - boden) * 15 / SPANNE))) for d in db)
 
 
 # ---------------------------------------------------------------- Cover

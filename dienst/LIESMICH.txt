@@ -1,4 +1,4 @@
-Netzdienst fuer den Emulator (MERIDIAN 816 Netzdienst, Version 1.7 vom 23.10.2026, (c) 2026 retro-modern.net,
+Netzdienst fuer den Emulator (MERIDIAN 816 Netzdienst, Version 2.0 vom 31.10.2026, (c) 2026 retro-modern.net,
 kostenlos nutzen und unveraendert weitergeben). Die Python-Dateien hier sind unveraendert aus dem Netzwerk-Paket des Cores;
 der Emulator startet draht.py selbst (Python 3.8+ noetig) und gibt ihm das DRAHT-Fenster (Bank $FD) als gemeinsame Datei.
 
@@ -11,3 +11,7 @@ sidjam_dienst.py, hvsc_index.py, orgelwandler.py, disk.py   SID JAM u. a. - SID 
                   fuer den Mac, die nicht beiliegen (im Paket nur als ARM-Programme fuer den MiSTer); es laeuft hier nicht.
 
 hvsc_index.tsv.gz  Verzeichnis der HVSC #85 fuer SID JAM allein; der Emulator legt es nach sdcard/HVSC/, wenn dort keines liegt.
+
+druck_dienst.py, bild_dienst.py   Drucken (PDF auf Laufwerk 3 oder IPP) und Bilder fuer HORIZONT 2.4; bild_dienst und druck_dienst rufen
+                  bildwandler auf (hier: dienst/bildwandler, mit make aus tools/bildwandler gebaut).
+beispiele/        C64GAMES.FIL und MERIDIAN.DRW fuer FILE und DRAW; der Emulator legt sie nach sdcard/files, wenn sie dort fehlen.

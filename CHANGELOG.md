@@ -1,5 +1,16 @@
 # Änderungen
 
+## 0.8.0
+- Core 20261030: `kern.rom` und `werkstatt.rom` neu (Fix für den Fernstart unter HORIZONT). Die ROMs sind aus `rom/*.hex` des Core-Repos umgewandelt.
+- Netzdienst 2.0 (Stand 31.10.2026) für HORIZONT 2.4: **Drucken** aus NOTES, PAINT und KONTOR (WRITE, CALC, FILE, DRAW) als A4-PDF auf Laufwerk 3 oder
+  per IPP an einen Netzwerkdrucker (`druck_dienst.py`); Bilder (JPG/PNG/GIF) für PICTURES und PAINT (`bild_dienst.py`); RADIO 1.2 mit Mitschnitt und 12 Bit
+  (`radio_dienst.py` 1.9). Alle Python-Dateien unverändert aus dem Paket.
+- Neu: `make` baut `dienst/bildwandler` aus `tools/bildwandler/` (Quelle und stb_image aus dem Netzdienst-Paket) für den Mac/Linux; die ARM-Programme des Pakets laufen hier nicht.
+- Neu: Beispiele `C64GAMES.FIL` und `MERIDIAN.DRW` (FILE, DRAW) kommen beim Start nach `sdcard/files`, wenn sie fehlen.
+- Neu: Cmd+D zeigt den Ordner von Laufwerk 3 im Dateimanager.
+- Geprüft mit `HORIZONT.MOD` 2.4 im Emulator: NOTES „Print to PDF …“ (Text stimmt) und „Print“ an einen Test-Drucker per IPP, PAINT „Print to PDF …“ (Bild); RADIO öffnet ohne Fehler.
+- Unverändert: `sidkern` liegt nur als ARM-Programm vor, SID JAM läuft weiter nicht.
+
 ## 0.7.3
 - Der HVSC-Index für SID JAM (`hvsc_index.tsv.gz`, HVSC #85) liegt jetzt bei und wird beim Start nach `sdcard/HVSC/` gelegt, falls dort
   keiner liegt (auch in einem schon vorhandenen `sdcard`); ein eigener Index wird nie überschrieben.

@@ -12,6 +12,7 @@ int dienst_rundlauf(Machine *m, char *o, size_t n) { (void)m; snprintf(o, n, "ni
 int dienst_mkdirs(const char *p) { (void)p; return -1; }
 const char *dienst_zertifikate(void) { return ""; }
 int dienst_index_kopieren(const char *q, const char *o) { (void)q; (void)o; return -1; }
+int dienst_beispiele_kopieren(const char *q, const char *o) { (void)q; (void)o; return 0; }
 int dienst_python(char *o, size_t n, char *e, size_t en) { (void)o; (void)n; snprintf(e, en, "unter Windows nicht eingebaut"); return -1; }
 #else
 #include <errno.h>
@@ -46,6 +47,26 @@ int dienst_index_kopieren(const char *quelle, const char *ordner) {
     ok = ok && !ferror(in); fclose(in); if (fclose(out) != 0) ok = 0;
     if (!ok || rename(tmp, dst) != 0) { unlink(tmp); return -1; }
     return 0;
+}
+/* Beispieldateien fuer KONTOR (C64GAMES.FIL fuer FILE, MERIDIAN.DRW fuer DRAW) nach <ordner>/files/ legen, wenn dort
+   noch keine gleichnamige liegt (eigene Dateien werden nie ueberschrieben). Rueckgabe: Anzahl der neu angelegten. */
+int dienst_beispiele_kopieren(const char *quelldir, const char *ordner) {
+    static const char *namen[] = { "C64GAMES.FIL", "MERIDIAN.DRW", NULL };
+    char dir[1300]; snprintf(dir, sizeof dir, "%s/files", ordner);
+    if (dienst_mkdirs(dir) != 0) return 0;
+    int neu = 0;
+    for (int i = 0; namen[i]; i++) {
+        char src[1400], dst[1400], tmp[1420];
+        snprintf(src, sizeof src, "%s/%s", quelldir, namen[i]); snprintf(dst, sizeof dst, "%s/%s", dir, namen[i]); snprintf(tmp, sizeof tmp, "%s.neu", dst);
+        if (access(dst, F_OK) == 0) continue;
+        FILE *in = fopen(src, "rb"); if (!in) continue;
+        FILE *out = fopen(tmp, "wb"); if (!out) { fclose(in); continue; }
+        char b[16384]; size_t n; int ok = 1;
+        while ((n = fread(b, 1, sizeof b, in)) > 0) if (fwrite(b, 1, n, out) != n) { ok = 0; break; }
+        ok = ok && !ferror(in); fclose(in); if (fclose(out) != 0) ok = 0;
+        if (ok && rename(tmp, dst) == 0) neu++; else unlink(tmp);
+    }
+    return neu;
 }
 /* Zertifikatspaket fuer HTTPS: Pythons von python.org/Homebrew finden den Schluesselbund nicht und scheitern mit
    CERTIFICATE_VERIFY_FAILED. Das Paket des Systems wird per SSL_CERT_FILE mitgegeben (Umgebung hat Vorrang). */

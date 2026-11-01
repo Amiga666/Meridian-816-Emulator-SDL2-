@@ -52,6 +52,28 @@ static void update_title(SDL_Window *w) {
                           disk_name[1] ? disk_name[1] : "-", disk_name[2] ? disk_name[2] : "-", dr_status[0] ? dr_status : "-", mod_name[0] ? "  |  Modul: " : "", mod_name);
     SDL_SetWindowTitle(w, t);
 }
+/* Cmd+D: den Ordner von Laufwerk 3 im Dateimanager des Rechners zeigen (dort liegen z. B. die PDF-Dateien, die HORIZONT
+   beim Drucken auf Laufwerk 3 ablegt). Pfad wird absolut gemacht und fuer die file:-Adresse %-kodiert. */
+static void open_folder(const char *path) {
+    char abs[2048];
+#ifdef _WIN32
+    if (!_fullpath(abs, path, sizeof abs)) return;
+    for (char *c = abs; *c; c++) if (*c == '\\') *c = '/';
+#else
+    if (!realpath(path, abs)) { fprintf(stderr, "Laufwerk 3: Ordner %s nicht gefunden\n", path); return; }
+#endif
+    char url[6200], *o = url; o += sprintf(o, "file://%s", abs[0] == '/' ? "" : "/");
+    for (const unsigned char *c = (const unsigned char *)abs; *c && o < url + sizeof url - 4; c++) {
+        if ((*c >= 'A' && *c <= 'Z') || (*c >= 'a' && *c <= 'z') || (*c >= '0' && *c <= '9') || strchr("/-_.~:", *c)) *o++ = (char)*c;
+        else o += sprintf(o, "%%%02X", *c);
+    }
+    *o = 0;
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+    if (SDL_OpenURL(url) != 0) fprintf(stderr, "Ordner oeffnen: %s\n", SDL_GetError());
+#else
+    fprintf(stderr, "Laufwerk 3: %s\n", abs);                    /* SDL < 2.0.14 kann keine Adressen oeffnen */
+#endif
+}
 static const char *base_name(const char *p) { const char *s = strrchr(p, '/'), *b = strrchr(p, '\\'); if (b > s) s = b; return s ? s + 1 : p; }
 
 /* Dateien als Satz verarbeiten (wie senden.py): Module und Images zuerst, dann .mer-Daten ohne Autostart,
@@ -87,7 +109,7 @@ static void load_set(Machine *m, SDL_Window *win, char **files, int n, bool shif
 static void usage(const char *p) {
     fprintf(stderr, "MERIDIAN 816 Emulator v" MERIDIAN_EMU_VERSION "\nAufruf: %s [--roms DIR] [--pal] [--no-sdram] [--module DATEI] [--scale N] [--run DATEN.MER ... --run PROG.MER] [--module M.MOD] [--no-module-start] [--no-module-fix] [--no-audio] [--ordner DIR (Standard: sdcard neben dem Programm)] [--no-dienst] [--show-cursor] [--ablage-port N (0 = aus, Standard 8816)] [--dienst-test] [--disk1 IMG] [--disk2 IMG] [--disk0 IMG] [--fullscreen] [--version]\n"
         "Hotkeys mit der Cmd-Taste (Windows/Super-Taste auf PC):\n"
-        "  Cmd+R Reset   Cmd+P PAL/NTSC   Cmd+F Vollbild   Cmd+S Screenshot   Cmd+Q Ende\n  Cmd+C Mauszeiger zeigen/verbergen   Cmd+M Ton aus/an   Laufwerk 3 = Ordner DIR/files   Cmd+Shift+R Kaltstart   Cmd+E Modul auswerfen   Cmd+1 / Cmd+2 Laufwerk 1 / 2 auswerfen.   Datei auf das Fenster ziehen: .mer = Programm laden, .mod = Modul stecken, sonst Laufwerk 1 (Shift: 2)\n", p);
+        "  Cmd+R Reset   Cmd+P PAL/NTSC   Cmd+F Vollbild   Cmd+S Screenshot   Cmd+Q Ende\n  Cmd+C Mauszeiger zeigen/verbergen   Cmd+M Ton aus/an   Laufwerk 3 = Ordner DIR/files (Cmd+D zeigt ihn: dort liegen auch gedruckte PDFs)   Cmd+Shift+R Kaltstart   Cmd+E Modul auswerfen   Cmd+1 / Cmd+2 Laufwerk 1 / 2 auswerfen.   Datei auf das Fenster ziehen: .mer = Programm laden, .mod = Modul stecken, sonst Laufwerk 1 (Shift: 2)\n", p);
 }
 int main(int argc, char **argv) {
     const char *roms = NULL, *module = NULL, *ordner = NULL, *runfile[8] = { NULL },  *disk[3] = { NULL, NULL, NULL }; int nrun = 0, nrun_done = 0; int ablage_port = 8816; bool showcursor = false; bool dtest = false, nodienst = false, noaudio = false, nofix = false, nomod = false, pal = false, sdram = true, full = false; int scale = 2;
@@ -144,6 +166,9 @@ int main(int argc, char **argv) {
             {   char ix[1200]; snprintf(ix, sizeof ix, "%.*s/hvsc_index.tsv.gz", (int)(strrchr(sp, '/') ? strrchr(sp, '/') - sp : 0), sp);
                 int r = dienst_index_kopieren(ix, ordner);           /* HVSC-Index fuer SID JAM neben die (selbst beizulegende) hvsc.zip */
                 if (r == 0) fprintf(stderr, "DRAHT: HVSC-Index angelegt: %s/HVSC/hvsc_index.tsv.gz (fuer SID JAM allein hvsc.zip dazulegen)\n", ordner); }
+            {   char bd[1200]; snprintf(bd, sizeof bd, "%.*s/beispiele", (int)(strrchr(sp, '/') ? strrchr(sp, '/') - sp : 0), sp);
+                int k = dienst_beispiele_kopieren(bd, ordner);        /* Beispiele fuer FILE und DRAW auf Laufwerk 3 */
+                if (k > 0) fprintf(stderr, "DRAHT: %d Beispieldatei(en) fuer KONTOR auf Laufwerk 3 angelegt\n", k); }
             fprintf(stderr, "DRAHT: Laufwerk 3 = %s  (Python: %s, Protokoll: %s)\n", dr_path, py, dienst_log());
             fprintf(stderr, "DRAHT: HTTPS-Zertifikate: %s\n", dienst_zertifikate()[0] ? dienst_zertifikate() : "(keine gefunden - Python-eigene Ablage)");
             if (ablage_port) fprintf(stderr, "DRAHT: Browser-Ablage (ATLAS) nur auf diesem Rechner: http://localhost:%d/\n", ablage_port);
@@ -197,6 +222,7 @@ int main(int argc, char **argv) {
                     case SDL_SCANCODE_E: m_eject_module(m); mod_name[0] = 0; update_title(win); break;
                     case SDL_SCANCODE_1: m_eject(m, 1); disk_name[1] = NULL; update_title(win); break;
                     case SDL_SCANCODE_2: m_eject(m, 2); disk_name[2] = NULL; update_title(win); break;
+                    case SDL_SCANCODE_D: if (dr_path[0]) open_folder(dr_path); else fprintf(stderr, "Laufwerk 3: kein Ordner (--no-dienst?)\n"); break;
                     case SDL_SCANCODE_P: pal = !pal; m_set_pal(m, pal); break;
                     case SDL_SCANCODE_F: full = !full; SDL_SetWindowFullscreen(win, full ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0); break;
                     case SDL_SCANCODE_S: { SDL_Surface *s = SDL_CreateRGBSurfaceWithFormatFrom(m->fb, SCR_W, SCR_H, 32, SCR_W * 4, SDL_PIXELFORMAT_ARGB8888);

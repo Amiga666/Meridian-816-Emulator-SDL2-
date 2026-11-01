@@ -1,8 +1,8 @@
-# MERIDIAN 816 – Emulator (Stufe 1, Version 0.7.3)
+# MERIDIAN 816 – Emulator (Stufe 1, Version 0.8.0)
 
 Emulator für den MiSTer-Core [MERIDIAN_MiSTer](https://github.com/Retro-Modern/MERIDIAN_MiSTer),
 geschrieben in C mit SDL2. Läuft auf macOS, Linux und Windows (MSYS2).
-Lizenz: GPL-3.0-or-later (wie der Core). Die ROMs in `roms/` sind aus `rom/*.hex` des Core-Repos (Stand 25.10.2026, Core 20261025)
+Lizenz: GPL-3.0-or-later (wie der Core). Die ROMs in `roms/` sind aus `rom/*.hex` des Core-Repos (Stand 30.10.2026, Core 20261030)
 umgewandelt (je 16 KB); BASIC stammt von Microsoft (MIT-Lizenz, siehe Core-Repo).
 
 ## Bauen und starten
@@ -11,10 +11,12 @@ umgewandelt (je 16 KB); BASIC stammt von Microsoft (MIT-Lizenz, siehe Core-Repo)
     make
     ./meridian                        # Optionen: --pal  --no-sdram  --scale N  --fullscreen  --roms DIR  --module DATEI  --version
 
+`make` baut außerdem `dienst/bildwandler` (JPG/PNG/GIF für PICTURES, PAINT, WRITE und den Druck; Quelle in `tools/bildwandler/`, braucht nur einen C-Compiler).
+
 Ohne SDL gibt es einen Testlauf: `make headless && ./meridian-headless roms 300 bild.ppm`
 
 Hotkeys (Cmd-Taste auf dem Mac, Windows-Taste am PC): **Cmd+C** Mauszeiger des Betriebssystems zeigen/verbergen (er ist über dem Fenster verborgen, weil der MERIDIAN seinen eigenen zeichnet; `--show-cursor` lässt ihn sichtbar), **Cmd+M** Ton aus/an, **Cmd+R** Reset, **Cmd+P** PAL/NTSC,
-**Cmd+F** Vollbild, **Cmd+S** Screenshot (`meridian-screenshot.bmp`), **Cmd+Q** Beenden.
+**Cmd+F** Vollbild, **Cmd+S** Screenshot (`meridian-screenshot.bmp`), **Cmd+D** Ordner von Laufwerk 3 im Finder zeigen (dort liegen auch die gedruckten PDFs), **Cmd+Q** Beenden.
 Die Tasten werden als PS/2-Scancodes (Satz 2) nach Tastenposition weitergereicht, das Kern-ROM
 macht daraus das deutsche Layout. Beide Alt/Option-Tasten wirken als AltGr (@, {, [ …).
 
@@ -66,7 +68,7 @@ genau zum alten ROM passen; beim mitgelieferten neuen ROM bleibt das ausgeschalt
 | PINSEL-Look: Glanz (SHINE), Leuchten (GLOW), Tusche (INK: Kontur und Schlagschatten) | fertig, nach `pinsel.sv` |
 | ORGEL (Ton): 4 Synthesestimmen (SID-Wellenformen, Sync, Ring, Hüllkurve), Filter, 8 Samplekanäle mit Crusher/Verzerrung, Echo, Stereo | fertig, rechnet im 1-MHz-Takt nach `orgel.sv`; Ausgabe 48 kHz über SDL |
 | BOTE: `.MER`-Programme laden (Chip-RAM und Zusatzspeicher, Autostart per NMI), Module (`.MOD`, schreibgeschützt ab `$40:0000`, überstehen Resets), Speicherstand `.sav` als Laufwerk 0 | fertig, getestet mit MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER |
-| DRAHT: Fenster Bank `$FD` als gemeinsame Datei, daran der echte Netzdienst `dienst/draht.py` (Python 3): **Laufwerk 3 = Ordner**, `NET`-Befehle | fertig für macOS und Linux; Windows noch nicht (Bank `$FD` bleibt dort ein einfacher Speicher) |
+| DRAHT: Fenster Bank `$FD` als gemeinsame Datei, daran der echte Netzdienst 2.0 `dienst/draht.py` (Python 3): **Laufwerk 3 = Ordner**, `NET`-Befehle | fertig für macOS und Linux; Windows noch nicht (Bank `$FD` bleibt dort ein einfacher Speicher) |
 
 Offen: Windows-Start des Netzdienstes, die Zusatzdienste des MiSTer (Radio, SID JAM, Nachrichten, Wetter, Browser-Ablage; liegen
 dem Core-Repo nicht bei), `FETCH` (braucht das BOTE-Postfach, meldet im Simulationsmodus selbst „only on the MiSTer“).
@@ -100,8 +102,8 @@ Wetter, Nachrichten und Radio mit `CERTIFICATE_VERIFY_FAILED`. Der Emulator gibt
 steht beim Start in der Konsole („DRAHT: HTTPS-Zertifikate: …“); hat Python gar keine, kommt dort ein Hinweis mit der Abhilfe
 (`Install Certificates.command` im Python-Ordner oder `pip3 install certifi`).
 
-**HORIZONT (Modul) und seine Apps:** Der Emulator bringt den vollständigen Netzdienst (Version 1.7) mit. Damit laufen
-WEATHER (und das Wetter in der Menüleiste), NEWS, ATLAS (Browser-Seite und Downloads), TAKTSTOCK (Netz-Jam) und RADIO. Die Browser-Seite ist nur auf
+**HORIZONT (Modul) und seine Apps:** Der Emulator bringt den Netzdienst 2.0 (HORIZONT 2.4) mit. Damit laufen
+WEATHER (und das Wetter in der Menüleiste), NEWS, ATLAS (Browser-Seite und Downloads), TAKTSTOCK (Netz-Jam), RADIO (auch Mitschnitt „REC“, 32 kHz/12 Bit), PICTURES und PAINT mit JPG/PNG/GIF und das **Drucken** (siehe unten). Die Browser-Seite ist nur auf
 diesem Rechner erreichbar: `http://localhost:8816/` (`--ablage-port N`, 0 = aus; `MERIDIAN_ABLAGE_LAN=1` öffnet sie wie am MiSTer fürs Heimnetz).
 RADIO braucht nichts zu installieren: `make` baut `dienst/bin/mpg123`, einen winzigen MP3-Dekoder (`tools/mpg123mini.c` mit
 [minimp3](https://github.com/lieff/minimp3), CC0), den der Dienst wie `mpg123` aufruft. Ist `ffmpeg` installiert, nimmt das Radiomodul auf dem Mac lieber das
@@ -110,6 +112,12 @@ mitten im Strom einsteigenden Sendern zurecht und rechnet auf 22 050 Hz um; AAC-
 im Paket liegen sie nur als ARM-Programme für den MiSTer bei. Die Apps holen Wetter, Nachrichten und Sender selbst aus dem Netz (siehe `dienst/LIESMICH.txt`
 und die Hinweise zum Datenschutz im Netzdienst-Paket); sie fragen erst, wenn du die App öffnest. Alle `NET`-Befehle (`GET`, `CONNECT`, `LISTEN`, `SEND`, `FILES`, `DISK` …) und Laufwerk 3 gehen ebenfalls.
 Er darf ins Netz: nur auf Befehle aus BASIC hin, ohne die startet nichts.
+
+**Drucken (HORIZONT 2.4):** NOTES, PAINT und die KONTOR-Apps (WRITE, CALC, FILE, DRAW) kennen „Print to PDF …“ und „Print“.
+„Print to PDF …“ legt eine A4-Datei `NAME.PDF` auf Laufwerk 3 ab (`sdcard/files`, Cmd+D zeigt den Ordner). „Print“ schickt das PDF per IPP an einen
+Netzwerkdrucker, der PDF annimmt (IPP Everywhere/AirPrint): erste Zeile von `sdcard/files/PRINTER.TXT` (`192.168.1.20`, ein Name oder `ipp://…/ipp/print`),
+ohne die Datei sucht der Dienst per Bonjour. Das Drucken selbst macht der unveränderte `dienst/druck_dienst.py` des Netzdienstes (reines Python).
+Beispiele für FILE und DRAW (`C64GAMES.FIL`, `MERIDIAN.DRW`) legt der Emulator beim Start nach `sdcard/files`, wenn sie dort fehlen.
 
 ## Ordner `sdcard` (entspricht `games/MERIDIAN` am MiSTer)
 
