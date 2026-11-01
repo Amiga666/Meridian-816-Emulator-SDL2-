@@ -1,4 +1,4 @@
-# MERIDIAN 816 – Emulator (Stufe 1, Version 0.8.1)
+# MERIDIAN 816 – Emulator (Stufe 1, Version 0.8.2)
 
 Emulator für den MiSTer-Core [MERIDIAN_MiSTer](https://github.com/Retro-Modern/MERIDIAN_MiSTer),
 geschrieben in C mit SDL2. Läuft auf macOS, Linux und Windows (MSYS2).
@@ -14,6 +14,9 @@ umgewandelt (je 16 KB); BASIC stammt von Microsoft (MIT-Lizenz, siehe Core-Repo)
 
 `make` baut außerdem `dienst/bildwandler` (JPG/PNG/GIF für PICTURES, PAINT, WRITE und den Druck; Quelle in `tools/bildwandler/`, braucht nur einen C-Compiler)
 sowie `dienst/sidkern` und `dienst/sidton` für SID JAM (Quellen in `tools/sidkern/` und `tools/sidton/`, auch nur ein C-/C++-Compiler).
+
+Wird derselbe Ordner auf mehreren Systemen gebaut (Mac und Linux, geteilter Ordner), baut `make` beim Wechsel alles neu (Datei `.plattform`).
+Schlägt etwas fehl: `make clean && make`.
 
 Ohne SDL gibt es einen Testlauf: `make headless && ./meridian-headless roms 300 bild.ppm`
 
