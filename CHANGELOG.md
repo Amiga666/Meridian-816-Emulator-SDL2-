@@ -1,5 +1,18 @@
 # Änderungen
 
+## 0.8.2
+Nur das Makefile.
+- **macOS:** Findet der C++-Compiler `<cmath>` nicht (unvollständige oder nach einem Update verstellte Kommandozeilenwerkzeuge), nimmt `make` für `sidton`
+  das SDK von Hand (`-isysroot`, `-I…/usr/include/c++/v1`): zuerst das von `xcrun --show-sdk-path`, sonst `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk`,
+  und nur, wenn dort `cmath` wirklich liegt. Die Korrektur stammt von Ole (auf dem Mac erprobt); sie steht jetzt nur noch auf macOS im Aufruf, nicht mehr fest für alle,
+  und `-O2` ist wieder dabei (ohne es rechnet `sidton` hier gut zweieinhalbmal langsamer).
+- **Linux/Fehler 13:** Wird derselbe Ordner auf dem Mac und unter Linux gebaut (geteilter Ordner, Kopie), hielt `make` die Mac-Programme für aktuell und baute sie nicht neu.
+  Unter Linux gab das z. B. `[Errno 13] Permission denied: 'mpg123'` (Datei ohne Ausführrecht) oder `[Errno 8] Exec format error`. Neu: die Datei `.plattform`
+  merkt sich System und Prozessor (z. B. `Darwin-arm64`, `Linux-x86_64`); ändert sich beides, werden `meridian`, `mpg123`, `bildwandler`, `sidkern` und `sidton` neu gebaut.
+  Bei gleicher Plattform bleibt alles, wie es ist.
+- Geprüft unter Linux x86_64: frischer Bau ohne Warnung, zweiter Lauf baut nichts neu, simulierter Wechsel von `Darwin-arm64` baut alle fünf Programme neu
+  (ein kaputtes `mpg123` ist danach wieder ein ausführbares Linux-Programm), Mac-Zweig im Trockenlauf mit und ohne SDK. Auf macOS selbst nicht ausgeführt.
+
 ## 0.8.1
 Nur SID JAM.
 - **SID JAM läuft.** `make` baut jetzt auch `dienst/sidkern` und `dienst/sidton`; der Netzdienst findet beide neben `sidjam_dienst.py`.
