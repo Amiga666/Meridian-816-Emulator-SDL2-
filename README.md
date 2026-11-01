@@ -1,9 +1,10 @@
-# MERIDIAN 816 – Emulator (Stufe 1, Version 0.8.0)
+# MERIDIAN 816 – Emulator (Stufe 1, Version 0.8.1)
 
 Emulator für den MiSTer-Core [MERIDIAN_MiSTer](https://github.com/Retro-Modern/MERIDIAN_MiSTer),
 geschrieben in C mit SDL2. Läuft auf macOS, Linux und Windows (MSYS2).
 Lizenz: GPL-3.0-or-later (wie der Core). Die ROMs in `roms/` sind aus `rom/*.hex` des Core-Repos (Stand 30.10.2026, Core 20261030)
-umgewandelt (je 16 KB); BASIC stammt von Microsoft (MIT-Lizenz, siehe Core-Repo).
+umgewandelt (je 16 KB); BASIC stammt von Microsoft (MIT-Lizenz, siehe Core-Repo). `tools/sidkern/` und `tools/sidton/sidton.cpp` sind GPL-3.0-or-later,
+`tools/sidton/resid/` ist reSID von Dag Lem (GPL-2.0-or-later, Lizenztext und Herkunft dort in `COPYING` und `QUELLE.txt`).
 
 ## Bauen und starten
 
@@ -11,7 +12,8 @@ umgewandelt (je 16 KB); BASIC stammt von Microsoft (MIT-Lizenz, siehe Core-Repo)
     make
     ./meridian                        # Optionen: --pal  --no-sdram  --scale N  --fullscreen  --roms DIR  --module DATEI  --version
 
-`make` baut außerdem `dienst/bildwandler` (JPG/PNG/GIF für PICTURES, PAINT, WRITE und den Druck; Quelle in `tools/bildwandler/`, braucht nur einen C-Compiler).
+`make` baut außerdem `dienst/bildwandler` (JPG/PNG/GIF für PICTURES, PAINT, WRITE und den Druck; Quelle in `tools/bildwandler/`, braucht nur einen C-Compiler)
+sowie `dienst/sidkern` und `dienst/sidton` für SID JAM (Quellen in `tools/sidkern/` und `tools/sidton/`, auch nur ein C-/C++-Compiler).
 
 Ohne SDL gibt es einen Testlauf: `make headless && ./meridian-headless roms 300 bild.ppm`
 
@@ -70,8 +72,7 @@ genau zum alten ROM passen; beim mitgelieferten neuen ROM bleibt das ausgeschalt
 | BOTE: `.MER`-Programme laden (Chip-RAM und Zusatzspeicher, Autostart per NMI), Module (`.MOD`, schreibgeschützt ab `$40:0000`, überstehen Resets), Speicherstand `.sav` als Laufwerk 0 | fertig, getestet mit MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER |
 | DRAHT: Fenster Bank `$FD` als gemeinsame Datei, daran der echte Netzdienst 2.0 `dienst/draht.py` (Python 3): **Laufwerk 3 = Ordner**, `NET`-Befehle | fertig für macOS und Linux; Windows noch nicht (Bank `$FD` bleibt dort ein einfacher Speicher) |
 
-Offen: Windows-Start des Netzdienstes, die Zusatzdienste des MiSTer (Radio, SID JAM, Nachrichten, Wetter, Browser-Ablage; liegen
-dem Core-Repo nicht bei), `FETCH` (braucht das BOTE-Postfach, meldet im Simulationsmodus selbst „only on the MiSTer“).
+Offen: Windows-Start des Netzdienstes, `FETCH` (braucht das BOTE-Postfach, meldet im Simulationsmodus selbst „only on the MiSTer“).
 
 ## Laufwerk 3 und Netz (DRAHT)
 
@@ -103,13 +104,14 @@ steht beim Start in der Konsole („DRAHT: HTTPS-Zertifikate: …“); hat Pytho
 (`Install Certificates.command` im Python-Ordner oder `pip3 install certifi`).
 
 **HORIZONT (Modul) und seine Apps:** Der Emulator bringt den Netzdienst 2.0 (HORIZONT 2.4) mit. Damit laufen
-WEATHER (und das Wetter in der Menüleiste), NEWS, ATLAS (Browser-Seite und Downloads), TAKTSTOCK (Netz-Jam), RADIO (auch Mitschnitt „REC“, 32 kHz/12 Bit), PICTURES und PAINT mit JPG/PNG/GIF und das **Drucken** (siehe unten). Die Browser-Seite ist nur auf
+WEATHER (und das Wetter in der Menüleiste), NEWS, ATLAS (Browser-Seite und Downloads), TAKTSTOCK (Netz-Jam), RADIO (auch Mitschnitt „REC“, 32 kHz/12 Bit), SID JAM (siehe unten), PICTURES und PAINT mit JPG/PNG/GIF und das **Drucken** (siehe unten). Die Browser-Seite ist nur auf
 diesem Rechner erreichbar: `http://localhost:8816/` (`--ablage-port N`, 0 = aus; `MERIDIAN_ABLAGE_LAN=1` öffnet sie wie am MiSTer fürs Heimnetz).
 RADIO braucht nichts zu installieren: `make` baut `dienst/bin/mpg123`, einen winzigen MP3-Dekoder (`tools/mpg123mini.c` mit
 [minimp3](https://github.com/lieff/minimp3), CC0), den der Dienst wie `mpg123` aufruft. Ist `ffmpeg` installiert, nimmt das Radiomodul auf dem Mac lieber das
 (es kann mehr als MP3). Der Dekoder versteht MP3 (MPEG 1/2/2.5, Layer 3) in jeder üblichen Abtastrate, Mono und Stereo, kommt mit ID3-Kopf und
-mitten im Strom einsteigenden Sendern zurecht und rechnet auf 22 050 Hz um; AAC-Sender spielt er nicht. **SID JAM läuft nicht**: Es braucht die Programme `sidkern` und `sidton` für den Mac,
-im Paket liegen sie nur als ARM-Programme für den MiSTer bei. Die Apps holen Wetter, Nachrichten und Sender selbst aus dem Netz (siehe `dienst/LIESMICH.txt`
+mitten im Strom einsteigenden Sendern zurecht und rechnet auf 22 050 Hz um; AAC-Sender spielt er nicht. **SID JAM läuft**: `make` baut
+`dienst/sidkern` und `dienst/sidton` aus `tools/sidkern/` und `tools/sidton/` (im Netzdienst-Paket liegen sie nur als ARM-Programme für den
+MiSTer bei). Es fehlt nur noch die HVSC, siehe unten. Die Apps holen Wetter, Nachrichten und Sender selbst aus dem Netz (siehe `dienst/LIESMICH.txt`
 und die Hinweise zum Datenschutz im Netzdienst-Paket); sie fragen erst, wenn du die App öffnest. Alle `NET`-Befehle (`GET`, `CONNECT`, `LISTEN`, `SEND`, `FILES`, `DISK` …) und Laufwerk 3 gehen ebenfalls.
 Er darf ins Netz: nur auf Befehle aus BASIC hin, ohne die startet nichts.
 
@@ -128,7 +130,6 @@ Beispiele für FILE und DRAW (`C64GAMES.FIL`, `MERIDIAN.DRW`) legt der Emulator 
                                       nur Verfahren „gespeichert“ oder „deflate“); `hvsc.zip.liste` entsteht beim ersten Start daneben
 
 Mit einer anderen HVSC-Version den Index selbst bauen: `python3 dienst/hvsc_index.py bauen C64Music sdcard/HVSC/hvsc_index.tsv.gz`.
-SID JAM selbst braucht zusätzlich `sidkern` und `sidton` für den Mac.
 
 ## Ton
 
