@@ -1,5 +1,26 @@
 # Änderungen
 
+## 0.8.1
+Nur SID JAM.
+- **SID JAM läuft.** `make` baut jetzt auch `dienst/sidkern` und `dienst/sidton`; der Netzdienst findet beide neben `sidjam_dienst.py`.
+  Quellen vom Entwickler des Netzdienstes: `tools/sidkern/` (eigener Code, GPL-3.0-or-later) und `tools/sidton/` (`sidton.cpp` GPL-3.0-or-later,
+  `resid/` = reSID von Dag Lem, GPL-2.0-or-later, unverändert). Beide brauchen nur einen Compiler und libc/libstdc++, keine Bibliothek. Die ARM-Programme
+  des Pakets laufen auf dem Mac nicht, deshalb der eigene Bau — wie bei `bildwandler`.
+- Hier geprüft (Linux x86_64, gleiche Quellen wie am Mac; auf macOS selbst noch nicht gebaut):
+  - `make` baut beide ohne Warnung. `sidkern --cputest` besteht Klaus Dormanns 6502-Funktionstest ($3469, 30 646 177 Befehle, 96 241 367 Zyklen).
+  - Mit einer selbst gebauten SID-Datei (440 Hz, Gate-Wechsel alle 64 Bilder): Kopf, `--text`, `--ab` (Registerabbild), Fehlermeldungen
+    („kein PSID/RSID“, „Datei zu kurz“, „Lied 2 gibt es nicht (1-1)“) und der Strom, den `SJELeser` und `orgelwandler` des Netzdienstes lesen.
+  - `sidkern | sidton`: Spitzenfrequenz 440,0 Hz.
+  - **SID JAM im Fenster von HORIZONT 2.4** (Maus und Tastatur simuliert, HVSC = Zip mit der Testdatei, Ton des Emulators aufgenommen): App öffnet,
+    Suche und Wiedergabe laufen, Anzeige „6581 PAL reSID“, Stimme 1 zeigt A-4, Fortschrittsbalken läuft. Ton im Klang ORIGINAL (reSID): 440 Hz mit
+    den Oberwellen einer Rechteckschwingung (1320, 2200, 3080 Hz …); im Klang ORGEL: 440 Hz.
+  - Nicht geprüft: echte HVSC-Stücke (nur eine Testdatei), Klang „TOGETHER“ (braucht den JAM-Server), Auto-DJ, Mehrfach-SID.
+- Laut Entwickler gegen libsidplayfp verglichen (31 Stücke exakt oder fast, 2000 HVSC-Stücke zu 96 % exakt); das habe ich nicht nachgeprüft.
+- Zwei Schutzzeilen für Windows (MSYS2), damit `make` dort nicht abbricht: `SIGPIPE` in `sidkern.c` und `M_PI` in `sidton.cpp` nur, wenn der Compiler sie kennt.
+  Auf MSYS2 selbst nicht gebaut; der Netzdienst läuft unter Windows ohnehin noch nicht.
+- Hinweis: Der Emulator taktet auf 50,3 bzw. 59,95 Bilder/s. Lässt man ihn schneller als Echtzeit rechnen (Testprogramme), hält SID JAM den Netzdienst
+  für tot, weil dessen Herzschlag in Echtzeit läuft.
+
 ## 0.8.0
 - Core 20261030: `kern.rom` und `werkstatt.rom` neu (Fix für den Fernstart unter HORIZONT). Die ROMs sind aus `rom/*.hex` des Core-Repos umgewandelt.
 - Netzdienst 2.0 (Stand 31.10.2026) für HORIZONT 2.4: **Drucken** aus NOTES, PAINT und KONTOR (WRITE, CALC, FILE, DRAW) als A4-PDF auf Laufwerk 3 oder
