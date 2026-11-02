@@ -1,5 +1,24 @@
 # Änderungen
 
+## 0.8.3
+- **Fix: die Kalenderuhr stand still.** `update_rtc()` lief nur beim Reset, danach zeigte PFORTE `$30–$36` für immer die Startzeit des Emulators – in der
+  Menüleiste von HORIZONT blieb die Uhr stehen. Jetzt wie in `rtl/pforte.sv` des Core: die Uhr läuft von selbst weiter (Uhr des Rechners plus Versatz),
+  `$37` schreiben hält den Stand fest, `$30–$36` lesen gibt immer den festgehaltenen Stand (so passen die sieben Bytes zusammen, auch wenn zwischendurch
+  eine Sekunde umspringt), und Schreiben auf `$30–$36` stellt die Uhr (`$30` übernimmt). Der Fix stammt von Marcel Rockenschuh (Patch 0002); ich habe ihn
+  gegen `pforte.sv` gegengelesen.
+  Geprüft mit HORIZONT 2.4 im Emulator: ohne den Fix steht die Menüleiste nach über zwei Minuten noch auf der Startzeit (23:57), mit dem Fix stimmt sie
+  mit der Rechneruhr überein, auch über Mitternacht hinweg (00:00, „Mon 02 Nov“).
+- **Fix (Linux): das Fenster wurde nach dem Vollbild viel kleiner.** Beim Verlassen des Vollbilds (Cmd+F) rief `main.c` nur `SDL_SetWindowFullscreen(win, 0)`
+  auf und verließ sich darauf, dass der Fenstermanager die alte Größe zurückgibt – manche tun das nicht (HiDPI, Wayland). Jetzt merkt sich der Emulator
+  Größe und Position vor dem Vollbild und setzt sie nach dem Verlassen zwei Sekunden lang durch, falls der Fenstermanager etwas anderes liefert
+  (Meldung auf stderr: `Fenster: nach dem Vollbild WxH statt WxH, setze zurueck`). Das gilt auch für ein vergrößertes Fenster und für den Start mit `--fullscreen`
+  (dann die Startgröße, `--scale` wird beachtet). `MERIDIAN_FENSTER_DEBUG=1` zeigt dabei Größe und Flags.
+  Geprüft unter Linux X11 (Xvfb mit Openbox): normaler Fenstermanager unverändert in Ordnung; ein nachgestellter „verklemmter“ Fenstermanager (Fenster wird
+  0,65 s nach dem Vollbild auf 400×300 gezogen) wird auf 960×720 an die alte Position zurückgesetzt; 1200×800 und `--scale 3` kommen ebenfalls zurück.
+  **Den Fehler selbst konnte ich nicht nachstellen** (Openbox gibt die Größe von sich aus richtig zurück); die Korrektur ist deshalb eine Absicherung gegen das
+  beschriebene Verhalten, nicht an einem echten GNOME/KDE/Wayland geprüft.
+- Nicht enthalten: der Mausfix (Patch 0003).
+
 ## 0.8.2
 Nur das Makefile.
 - **macOS:** Findet der C++-Compiler `<cmath>` nicht (unvollständige oder nach einem Update verstellte Kommandozeilenwerkzeuge), nimmt `make` für `sidton`

@@ -1,4 +1,4 @@
-# MERIDIAN 816 – Emulator (Stufe 1, Version 0.8.2)
+# MERIDIAN 816 – Emulator (Stufe 1, Version 0.8.3)
 
 Emulator für den MiSTer-Core [MERIDIAN_MiSTer](https://github.com/Retro-Modern/MERIDIAN_MiSTer),
 geschrieben in C mit SDL2. Läuft auf macOS, Linux und Windows (MSYS2).
