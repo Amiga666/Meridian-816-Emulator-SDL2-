@@ -1,168 +1,167 @@
-# Änderungen
+# Changelog
 
 ## 0.8.3
-- **Fix: die Kalenderuhr stand still.** `update_rtc()` lief nur beim Reset, danach zeigte PFORTE `$30–$36` für immer die Startzeit des Emulators – in der
-  Menüleiste von HORIZONT blieb die Uhr stehen. Jetzt wie in `rtl/pforte.sv` des Core: die Uhr läuft von selbst weiter (Uhr des Rechners plus Versatz),
-  `$37` schreiben hält den Stand fest, `$30–$36` lesen gibt immer den festgehaltenen Stand (so passen die sieben Bytes zusammen, auch wenn zwischendurch
-  eine Sekunde umspringt), und Schreiben auf `$30–$36` stellt die Uhr (`$30` übernimmt). Der Fix stammt von Marcel Rockenschuh (Patch 0002); ich habe ihn
-  gegen `pforte.sv` gegengelesen.
-  Geprüft mit HORIZONT 2.4 im Emulator: ohne den Fix steht die Menüleiste nach über zwei Minuten noch auf der Startzeit (23:57), mit dem Fix stimmt sie
-  mit der Rechneruhr überein, auch über Mitternacht hinweg (00:00, „Mon 02 Nov“).
-- **Fix (Linux): das Fenster wurde nach dem Vollbild viel kleiner.** Beim Verlassen des Vollbilds (Cmd+F) rief `main.c` nur `SDL_SetWindowFullscreen(win, 0)`
-  auf und verließ sich darauf, dass der Fenstermanager die alte Größe zurückgibt – manche tun das nicht (HiDPI, Wayland). Jetzt merkt sich der Emulator
-  Größe und Position vor dem Vollbild und setzt sie nach dem Verlassen zwei Sekunden lang durch, falls der Fenstermanager etwas anderes liefert
-  (Meldung auf stderr: `Fenster: nach dem Vollbild WxH statt WxH, setze zurueck`). Das gilt auch für ein vergrößertes Fenster und für den Start mit `--fullscreen`
-  (dann die Startgröße, `--scale` wird beachtet). `MERIDIAN_FENSTER_DEBUG=1` zeigt dabei Größe und Flags.
-  Geprüft unter Linux X11 (Xvfb mit Openbox): normaler Fenstermanager unverändert in Ordnung; ein nachgestellter „verklemmter“ Fenstermanager (Fenster wird
-  0,65 s nach dem Vollbild auf 400×300 gezogen) wird auf 960×720 an die alte Position zurückgesetzt; 1200×800 und `--scale 3` kommen ebenfalls zurück.
-  **Den Fehler selbst konnte ich nicht nachstellen** (Openbox gibt die Größe von sich aus richtig zurück); die Korrektur ist deshalb eine Absicherung gegen das
-  beschriebene Verhalten, nicht an einem echten GNOME/KDE/Wayland geprüft.
-- Nicht enthalten: der Mausfix (Patch 0003).
+- **Documentation:** `README.md` is now bilingual (German and English) and lists every third-party program, library and data source with its origin and license
+  (section "Sources and licenses"). This changelog is English only. Two outdated passages in the README were corrected: it claimed drive 3 did not exist yet,
+  and one sentence in "Programs and modules" was duplicated. The version number is unchanged; this is a re-issue of the 0.8.3 package.
+- **Fix: the calendar clock stopped.** `update_rtc()` ran only at reset, after which PFORTE `$30–$36` showed the emulator's start time forever, so the clock in
+  HORIZONT's menu bar stood still. Now it behaves like `rtl/pforte.sv` of the core: the clock keeps running on its own (host clock plus an offset), writing `$37`
+  latches the current value, reading `$30–$36` always returns the latched value (so the seven bytes belong together even if a second rolls over in between), and
+  writing `$30–$36` sets the clock (`$30` commits). The fix is by Marcel Rockenschuh (patch 0002); it was checked against `pforte.sv`.
+  Tested with HORIZONT 2.4 in the emulator: without the fix the menu bar still showed the start time (23:57) after more than two minutes; with the fix it matches
+  the host clock, also across midnight (00:00, "Mon 02 Nov").
+- **Fix (Linux): the window became much smaller after leaving full screen.** When leaving full screen (Cmd+F), `main.c` only called `SDL_SetWindowFullscreen(win, 0)`
+  and relied on the window manager to restore the old size; some do not (HiDPI, Wayland). The emulator now remembers the window size and position before going
+  full screen and enforces them for two seconds after leaving it, if the window manager returns something else (message on stderr, in German:
+  `Fenster: nach dem Vollbild WxH statt WxH, setze zurueck`). This also covers a window enlarged by the user and starting with `--fullscreen` (the start size is used;
+  `--scale` is respected). `MERIDIAN_FENSTER_DEBUG=1` prints size and flags while doing so.
+  Tested on Linux X11 (Xvfb with Openbox): a normal window manager is unaffected; a simulated "misbehaving" window manager (the window is resized to 400×300 0.65 s after
+  leaving full screen) is put back to 960×720 at its old position; 1200×800 and `--scale 3` are restored as well.
+  **The original problem could not be reproduced** (Openbox restores the size by itself); the change is therefore a safeguard against the described behaviour and has
+  not been tested on a real GNOME, KDE or Wayland desktop.
+- Not included: the mouse fix (patch 0003).
 
 ## 0.8.2
-Nur das Makefile.
-- **macOS:** Findet der C++-Compiler `<cmath>` nicht (unvollständige oder nach einem Update verstellte Kommandozeilenwerkzeuge), nimmt `make` für `sidton`
-  das SDK von Hand (`-isysroot`, `-I…/usr/include/c++/v1`): zuerst das von `xcrun --show-sdk-path`, sonst `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk`,
-  und nur, wenn dort `cmath` wirklich liegt. Die Korrektur stammt von Ole (auf dem Mac erprobt); sie steht jetzt nur noch auf macOS im Aufruf, nicht mehr fest für alle,
-  und `-O2` ist wieder dabei (ohne es rechnet `sidton` hier gut zweieinhalbmal langsamer).
-- **Linux/Fehler 13:** Wird derselbe Ordner auf dem Mac und unter Linux gebaut (geteilter Ordner, Kopie), hielt `make` die Mac-Programme für aktuell und baute sie nicht neu.
-  Unter Linux gab das z. B. `[Errno 13] Permission denied: 'mpg123'` (Datei ohne Ausführrecht) oder `[Errno 8] Exec format error`. Neu: die Datei `.plattform`
-  merkt sich System und Prozessor (z. B. `Darwin-arm64`, `Linux-x86_64`); ändert sich beides, werden `meridian`, `mpg123`, `bildwandler`, `sidkern` und `sidton` neu gebaut.
-  Bei gleicher Plattform bleibt alles, wie es ist.
-- Geprüft unter Linux x86_64: frischer Bau ohne Warnung, zweiter Lauf baut nichts neu, simulierter Wechsel von `Darwin-arm64` baut alle fünf Programme neu
-  (ein kaputtes `mpg123` ist danach wieder ein ausführbares Linux-Programm), Mac-Zweig im Trockenlauf mit und ohne SDK. Auf macOS selbst nicht ausgeführt.
+Makefile only.
+- **macOS:** if the C++ compiler cannot find `<cmath>` (incomplete command line tools, or tools broken by an update), `make` now passes the SDK to the compiler explicitly for
+  `sidton` (`-isysroot`, `-I…/usr/include/c++/v1`): first the one from `xcrun --show-sdk-path`, otherwise `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk`, and only if
+  `cmath` really exists there. The fix was contributed by the maintainer and tried on a Mac; it now appears in the command only on macOS instead of being hard-coded for every
+  system, and `-O2` is back (without it `sidton` runs a good two and a half times slower here).
+- **Linux, error 13:** if the same folder was built on the Mac and on Linux (shared folder, copy), `make` considered the Mac programs up to date and did not rebuild them.
+  On Linux this produced, for example, `[Errno 13] Permission denied: 'mpg123'` (file without execute permission) or `[Errno 8] Exec format error`. New: the file `.plattform`
+  records system and processor (e.g. `Darwin-arm64`, `Linux-x86_64`); when either changes, `meridian`, `mpg123`, `bildwandler`, `sidkern` and `sidton` are rebuilt.
+  On the same platform nothing changes.
+- Tested on Linux x86_64: fresh build without warnings, a second run rebuilds nothing, a simulated switch from `Darwin-arm64` rebuilds all five programs
+  (a broken `mpg123` is afterwards a working Linux executable again), the Mac branch in a dry run with and without an SDK. Not run on macOS itself.
 
 ## 0.8.1
-Nur SID JAM.
-- **SID JAM läuft.** `make` baut jetzt auch `dienst/sidkern` und `dienst/sidton`; der Netzdienst findet beide neben `sidjam_dienst.py`.
-  Quellen vom Entwickler des Netzdienstes: `tools/sidkern/` (eigener Code, GPL-3.0-or-later) und `tools/sidton/` (`sidton.cpp` GPL-3.0-or-later,
-  `resid/` = reSID von Dag Lem, GPL-2.0-or-later, unverändert). Beide brauchen nur einen Compiler und libc/libstdc++, keine Bibliothek. Die ARM-Programme
-  des Pakets laufen auf dem Mac nicht, deshalb der eigene Bau — wie bei `bildwandler`.
-- Hier geprüft (Linux x86_64, gleiche Quellen wie am Mac; auf macOS selbst noch nicht gebaut):
-  - `make` baut beide ohne Warnung. `sidkern --cputest` besteht Klaus Dormanns 6502-Funktionstest ($3469, 30 646 177 Befehle, 96 241 367 Zyklen).
-  - Mit einer selbst gebauten SID-Datei (440 Hz, Gate-Wechsel alle 64 Bilder): Kopf, `--text`, `--ab` (Registerabbild), Fehlermeldungen
-    („kein PSID/RSID“, „Datei zu kurz“, „Lied 2 gibt es nicht (1-1)“) und der Strom, den `SJELeser` und `orgelwandler` des Netzdienstes lesen.
-  - `sidkern | sidton`: Spitzenfrequenz 440,0 Hz.
-  - **SID JAM im Fenster von HORIZONT 2.4** (Maus und Tastatur simuliert, HVSC = Zip mit der Testdatei, Ton des Emulators aufgenommen): App öffnet,
-    Suche und Wiedergabe laufen, Anzeige „6581 PAL reSID“, Stimme 1 zeigt A-4, Fortschrittsbalken läuft. Ton im Klang ORIGINAL (reSID): 440 Hz mit
-    den Oberwellen einer Rechteckschwingung (1320, 2200, 3080 Hz …); im Klang ORGEL: 440 Hz.
-  - Nicht geprüft: echte HVSC-Stücke (nur eine Testdatei), Klang „TOGETHER“ (braucht den JAM-Server), Auto-DJ, Mehrfach-SID.
-- Laut Entwickler gegen libsidplayfp verglichen (31 Stücke exakt oder fast, 2000 HVSC-Stücke zu 96 % exakt); das habe ich nicht nachgeprüft.
-- Zwei Schutzzeilen für Windows (MSYS2), damit `make` dort nicht abbricht: `SIGPIPE` in `sidkern.c` und `M_PI` in `sidton.cpp` nur, wenn der Compiler sie kennt.
-  Auf MSYS2 selbst nicht gebaut; der Netzdienst läuft unter Windows ohnehin noch nicht.
-- Hinweis: Der Emulator taktet auf 50,3 bzw. 59,95 Bilder/s. Lässt man ihn schneller als Echtzeit rechnen (Testprogramme), hält SID JAM den Netzdienst
-  für tot, weil dessen Herzschlag in Echtzeit läuft.
+SID JAM only.
+- **SID JAM works.** `make` now also builds `dienst/sidkern` and `dienst/sidton`; the network service finds both next to `sidjam_dienst.py`.
+  Sources from the developer of the network service: `tools/sidkern/` (own code, GPL-3.0-or-later) and `tools/sidton/` (`sidton.cpp` GPL-3.0-or-later,
+  `resid/` = reSID by Dag Lem, GPL-2.0-or-later, unchanged). Both need only a compiler and libc/libstdc++, no libraries. The package's ARM programs do not run on the Mac,
+  hence the local build – as with `bildwandler`.
+- Tested here (Linux x86_64, same sources as on the Mac; not yet built on macOS itself):
+  - `make` builds both without warnings. `sidkern --cputest` passes Klaus Dormann's 6502 functional test ($3469, 30,646,177 instructions, 96,241,367 cycles).
+  - With a self-made SID file (440 Hz, gate toggled every 64 frames): header, `--text`, `--ab` (register image), error messages
+    ("kein PSID/RSID", "Datei zu kurz", "Lied 2 gibt es nicht (1-1)") and the stream as read by the network service's `SJELeser` and `orgelwandler`.
+  - `sidkern | sidton`: peak frequency 440.0 Hz.
+  - **SID JAM inside HORIZONT 2.4's window** (mouse and keyboard simulated, HVSC = a zip with the test file, the emulator's sound recorded): the app opens,
+    search and playback work, display "6581 PAL reSID", voice 1 shows A-4, the progress bar runs. Sound in the ORIGINAL (reSID) mode: 440 Hz with the harmonics of a
+    square wave (1320, 2200, 3080 Hz …); in the ORGEL mode: 440 Hz.
+  - Not tested: real HVSC tunes (only one test file), the TOGETHER sound (needs the JAM server), Auto-DJ, multi-SID.
+- According to the developer, compared against libsidplayfp (31 tunes exact or nearly so, 2000 HVSC tunes 96 % exact); this was not re-checked here.
+- The supplied sources contain two guards for Windows (MSYS2) so that `make` does not fail there: `SIGPIPE` in `sidkern.c` and `M_PI` in `sidton.cpp` are used only if the
+  compiler knows them. Not built on MSYS2 itself; the network service does not run on Windows yet anyway.
+- Note: the emulator is paced at 50.3 or 59.95 frames per second. If it is made to run faster than real time (test programs), SID JAM considers the network service dead,
+  because the service's heartbeat runs in real time.
 
 ## 0.8.0
-- Core 20261030: `kern.rom` und `werkstatt.rom` neu (Fix für den Fernstart unter HORIZONT). Die ROMs sind aus `rom/*.hex` des Core-Repos umgewandelt.
-- Netzdienst 2.0 (Stand 31.10.2026) für HORIZONT 2.4: **Drucken** aus NOTES, PAINT und KONTOR (WRITE, CALC, FILE, DRAW) als A4-PDF auf Laufwerk 3 oder
-  per IPP an einen Netzwerkdrucker (`druck_dienst.py`); Bilder (JPG/PNG/GIF) für PICTURES und PAINT (`bild_dienst.py`); RADIO 1.2 mit Mitschnitt und 12 Bit
-  (`radio_dienst.py` 1.9). Alle Python-Dateien unverändert aus dem Paket.
-- Neu: `make` baut `dienst/bildwandler` aus `tools/bildwandler/` (Quelle und stb_image aus dem Netzdienst-Paket) für den Mac/Linux; die ARM-Programme des Pakets laufen hier nicht.
-- Neu: Beispiele `C64GAMES.FIL` und `MERIDIAN.DRW` (FILE, DRAW) kommen beim Start nach `sdcard/files`, wenn sie fehlen.
-- Neu: Cmd+D zeigt den Ordner von Laufwerk 3 im Dateimanager.
-- Geprüft mit `HORIZONT.MOD` 2.4 im Emulator: NOTES „Print to PDF …“ (Text stimmt) und „Print“ an einen Test-Drucker per IPP, PAINT „Print to PDF …“ (Bild); RADIO öffnet ohne Fehler.
-- Unverändert: `sidkern` liegt nur als ARM-Programm vor, SID JAM läuft weiter nicht.
+- Core 20261030: `kern.rom` and `werkstatt.rom` are new (fix for the remote start under HORIZONT). The ROMs are converted from `rom/*.hex` of the core repository.
+- Network service 2.0 (31 Oct 2026) for HORIZONT 2.4: **printing** from NOTES, PAINT and KONTOR (WRITE, CALC, FILE, DRAW) as an A4 PDF on drive 3 or
+  by IPP to a network printer (`druck_dienst.py`); pictures (JPG/PNG/GIF) for PICTURES and PAINT (`bild_dienst.py`); RADIO 1.2 with recording and 12 bit
+  (`radio_dienst.py` 1.9). All Python files are unchanged from the package.
+- New: `make` builds `dienst/bildwandler` from `tools/bildwandler/` (source and stb_image from the network service package) for the Mac/Linux; the package's ARM programs do not run here.
+- New: the examples `C64GAMES.FIL` and `MERIDIAN.DRW` (FILE, DRAW) are put into `sdcard/files` at startup if they are missing.
+- New: Cmd+D shows the folder of drive 3 in the file manager.
+- Tested with `HORIZONT.MOD` 2.4 in the emulator: NOTES "Print to PDF …" (the text is correct) and "Print" to a test printer by IPP, PAINT "Print to PDF …" (the picture); RADIO opens without errors.
+- Unchanged: `sidkern` existed only as an ARM program, SID JAM still did not run.
 
 ## 0.7.3
-- Der HVSC-Index für SID JAM (`hvsc_index.tsv.gz`, HVSC #85) liegt jetzt bei und wird beim Start nach `sdcard/HVSC/` gelegt, falls dort
-  keiner liegt (auch in einem schon vorhandenen `sdcard`); ein eigener Index wird nie überschrieben.
-- Der Mauszeiger des Betriebssystems ist über dem Emulatorfenster verborgen (Cmd+C schaltet um, `--show-cursor` lässt ihn sichtbar).
-  In Titelleiste und außerhalb des Fensters bleibt er sichtbar.
-- Unverändert: `sidkern`/`sidton` (SID JAM läuft weiter nicht, Rückmeldung vom Entwickler abgewartet).
+- The HVSC index for SID JAM (`hvsc_index.tsv.gz`, HVSC #85) is now included and is placed into `sdcard/HVSC/` at startup if there is none there (also in an already
+  existing `sdcard`); an index of your own is never overwritten.
+- The operating system's mouse pointer is hidden over the emulator window (Cmd+C toggles it, `--show-cursor` keeps it visible). It stays visible in the title bar and outside the window.
+- Unchanged: `sidkern`/`sidton` (SID JAM still does not run, waiting for feedback from the developer).
 
 ## 0.7.2
-- Neu: eingebauter MP3-Dekoder für RADIO (`tools/mpg123mini.c` + minimp3, CC0). `make` baut ihn als `dienst/bin/mpg123`, der Dienst stellt den
-  Ordner seinem Suchpfad voran; kein ffmpeg mehr nötig (ist es da, wird es weiter bevorzugt). Rechnet auf 22 050 Hz Stereo um.
-- Getestet: MP3 mit 22,05/32/44,1/48 kHz und Mono (Frequenz und Kanaltrennung stimmen mit ffmpeg überein), langsamer Strom, ID3-Kopf, Müll
-  vor dem Strom, Einstieg mitten im Strom, abgeschnittenes Ende, leere und zufällige Eingabe. Ende zu Ende: Radio-Anfrage an den Dienst →
-  Zustand „spielt“, Ringpuffer im Fenster mit 440,1 Hz links und 659,5 Hz rechts.
+- New: built-in MP3 decoder for RADIO (`tools/mpg123mini.c` + minimp3, CC0). `make` builds it as `dienst/bin/mpg123`, and the service puts that folder first in its search path;
+  ffmpeg is no longer needed (if present, it is still preferred). Converts to 22,050 Hz stereo.
+- Tested: MP3 at 22.05/32/44.1/48 kHz and mono (frequency and channel separation agree with ffmpeg), slow stream, ID3 header, junk before the stream, joining in the
+  middle of the stream, truncated end, empty and random input. End to end: radio request to the service → state "playing", ring buffer in the window with 440.1 Hz left and 659.5 Hz right.
 
 ## 0.7.1
-- Fix: Wetter, Nachrichten (und Radio) scheiterten auf dem Mac mit `CERTIFICATE_VERIFY_FAILED … unable to get local issuer certificate`,
-  weil Python dort ohne Nacharbeit keine Zertifikate hat. Der Emulator gibt dem Dienst jetzt das Zertifikatspaket des Systems mit
-  (`SSL_CERT_FILE`, Rückfall `certifi`) und warnt beim Start, wenn Python gar keine Zertifikate hat.
+- Fix: weather, news (and radio) failed on the Mac with `CERTIFICATE_VERIFY_FAILED … unable to get local issuer certificate`, because Python there has no certificates without extra work.
+  The emulator now passes the system's certificate bundle to the service (`SSL_CERT_FILE`, fallback `certifi`) and warns at startup if Python has no certificates at all.
 
 ## 0.7.0
-- Neu: der komplette Netzdienst 1.7 (Wetter, Nachrichten, Radio, ATLAS-Ablage, TAKTSTOCK-Jam, SID-JAM-Teile) liegt in `dienst/` bei.
-  Ohne diese Module bediente `draht.py` nur BASIC-`NET` und Laufwerk 3, die HORIZONT-Apps bekamen keine Antwort.
-  Geprüft: WEATHER im HORIZONT-Modul schickt die Anfrage an den Dienst (im Protokoll steht der Versuch, Open-Meteo zu holen).
-- Browser-Ablage (ATLAS): Standardport 8816, nur an 127.0.0.1 gebunden, Adresse „localhost“ (`--ablage-port`, `MERIDIAN_ABLAGE_LAN`).
-- ORGEL liest Samples auch aus Bank `$FD` (DRAHT-Fenster), wie das DMA der Hardware. Gemessen: 220,8 Hz bei erwarteten 220,5 Hz.
-- Der Dienst wird als Modul geladen (draht.py bleibt unverändert; Anpassungen stehen im Start-Skript des Emulators).
-- Nicht möglich: SID JAM (braucht `sidkern`/`sidton` für macOS).
+- New: the complete network service 1.7 (weather, news, radio, ATLAS storage, TAKTSTOCK jam, SID JAM parts) is included in `dienst/`.
+  Without these modules `draht.py` served only BASIC `NET` and drive 3, and the HORIZONT apps got no answer.
+  Tested: WEATHER in the HORIZONT module sends its request to the service (the log shows the attempt to fetch Open-Meteo).
+- Browser storage (ATLAS): default port 8816, bound to 127.0.0.1 only, address "localhost" (`--ablage-port`, `MERIDIAN_ABLAGE_LAN`).
+- ORGEL also reads samples from bank `$FD` (the DRAHT window), like the hardware's DMA. Measured: 220.8 Hz where 220.5 Hz was expected.
+- The service is loaded as a module (`draht.py` stays unchanged; adaptations are in the emulator's start script).
+- Not possible: SID JAM (needs `sidkern`/`sidton` for macOS).
 
 ## 0.6.2
-- Standardordner heißt jetzt `sdcard` (Laufwerk 3 = `sdcard/files`). Vorher `MERIDIAN`: Auf macOS ist das derselbe Name wie das Programm `meridian`
-  (Groß-/Kleinschreibung zählt dort nicht), der Ordner ließ sich nicht anlegen. Bei so einer Kollision gibt es jetzt eine klare Meldung.
-- Neu: Selbsttest des DRAHT-Kanals (`--dienst-test`, außerdem automatisch beim Start): eine Anfrage `HELP` geht durch das Fenster zum Dienst, die
-  Antwort wird geprüft. Ergebnis im Fenstertitel und in der Konsole.
-- Getestet: `NET "GET 127.0.0.1:8765/index.txt"` gegen einen lokalen Webserver (Status 200, Inhalt ankommen, Anfrage im Server-Protokoll).
+- The default folder is now called `sdcard` (drive 3 = `sdcard/files`). It used to be `MERIDIAN`: on macOS that is the same name as the program `meridian`
+  (case does not matter there), so the folder could not be created. On such a collision there is now a clear message.
+- New: self-test of the DRAHT channel (`--dienst-test`, also run automatically at startup): a `HELP` request goes through the window to the service and the
+  answer is checked. The result is shown in the window title and in the console.
+- Tested: `NET "GET 127.0.0.1:8765/index.txt"` against a local web server (status 200, content arrives, request appears in the server's log).
 
 ## 0.6.1
-- DRAHT robuster und sichtbarer: Der Ordner `MERIDIAN/files` wird vom Emulator selbst angelegt und liegt neben dem Programm (nicht mehr
-  im aktuellen Arbeitsverzeichnis). Python 3.8+ wird gesucht (PATH, `/usr/bin`, Homebrew, `MERIDIAN_PYTHON`) und vorab geprüft.
-- Nach dem Start prüft der Emulator, ob der Dienst lebt und sein Herzschlag läuft; Ergebnis im Fenstertitel („D3: …“), bei Fehlern
-  Grund und Protokollauszug in der Konsole.
+- DRAHT more robust and more visible: the folder `MERIDIAN/files` is created by the emulator itself and lives next to the program (no longer in the current
+  working directory). Python 3.8+ is searched for (PATH, `/usr/bin`, Homebrew, `MERIDIAN_PYTHON`) and checked beforehand.
+- After startup the emulator checks whether the service is alive and its heartbeat runs; the result is shown in the window title ("D3: …"); on errors the
+  reason and a log excerpt appear in the console.
 
 ## 0.6.0
-- Neu: DRAHT. Bank `$FD` ist eine gemeinsam genutzte Datei (mmap); der Emulator startet den echten Netzdienst `dienst/draht.py`
-  (Python 3) und kann so **Laufwerk 3** (Ordner `MERIDIAN/files`) und die **NET-Befehle**. Wächter beendet den Dienst mit dem Emulator.
-- Optionen `--ordner DIR`, `--no-dienst`; Umgebungsvariable `MERIDIAN_PYTHON`.
-- Bank `$FD` ist jetzt auch ohne Zusatzspeicher (`--no-sdram`) vorhanden.
-- Getestet: `DIR 3` (mit 8.3-Kürzel), `LOAD`/`SAVE` auf Laufwerk 3 (Datei byte-identisch auf dem Rechner), `NET "FILES"`, `NET "HELP"`.
-  Regressionstests unverändert bestanden.
+- New: DRAHT. Bank `$FD` is a shared file (mmap); the emulator starts the real network service `dienst/draht.py`
+  (Python 3) and thereby provides **drive 3** (folder `MERIDIAN/files`) and the **NET commands**. A watchdog ends the service together with the emulator.
+- Options `--ordner DIR`, `--no-dienst`; environment variable `MERIDIAN_PYTHON`.
+- Bank `$FD` now exists even without expansion memory (`--no-sdram`).
+- Tested: `DIR 3` (with 8.3 short names), `LOAD`/`SAVE` on drive 3 (file byte-identical on the computer), `NET "FILES"`, `NET "HELP"`.
+  Regression tests unchanged and passed.
 
 ## 0.5.0
-- Neu: ORGEL – Ton. Vier Synthesestimmen (Dreieck, Säge, Puls, Rauschen, kombinierbar, Sync/Ring, ADSR wie beim SID),
-  Zustandsvariablenfilter, acht Samplekanäle (Chip-RAM und Zusatzspeicher, Schleife, Crusher, Verzerrung), Echo, Panorama und
-  Mischpult nach `rtl/orgel.sv`; Ausgabe 48 kHz Stereo über SDL (Vorpuffer 100 ms). `SFX`, `SOUND`, `PLAY`, `SONG`, `SAMPLE` sind hörbar.
-- `--no-audio`, Cmd+M (Ton aus/an), Testhilfe `MERIDIAN_AUDIO_STATS=1`.
-- Getestet per Aufnahme: `SOUND 1,440` → 440 Hz; BALLETT-Musik, ORGEL-Demo, FILTERTEST und Zusammenspiel liefern Ton in Stereo.
+- New: ORGEL – sound. Four synthesis voices (triangle, saw, pulse, noise, combinable, sync/ring, ADSR like the SID), state-variable filter, eight sample channels
+  (chip RAM and expansion memory, loop, crusher, distortion), echo, panning and mixer after `rtl/orgel.sv`; output 48 kHz stereo via SDL (100 ms pre-buffer).
+  `SFX`, `SOUND`, `PLAY`, `SONG`, `SAMPLE` are audible.
+- `--no-audio`, Cmd+M (sound off/on), test aid `MERIDIAN_AUDIO_STATS=1`.
+- Tested by recording: `SOUND 1,440` → 440 Hz; BALLETT music, the ORGEL demo, FILTERTEST and Zusammenspiel produce stereo sound.
 
 ## 0.4.3
-- ROMs auf den Stand vom 25.10.2026 aktualisiert (Core 20261025): `kern`, `dos` und `werkstatt` neu, `basic` und `song` unverändert.
-  Der Entwickler hat den Modul-Rücksprung im Kern selbst repariert (`jsr anzeige_zuruecksetzen` vor `_basic`).
-- Der Ausgleich aus 0.4.2 greift nur noch bei dem alten Kern-ROM und ist beim neuen ROM automatisch aus. Geprüft: neues ROM mit
-  TIEFGANG 1.1 und 1.2, altes ROM mit und ohne Ausgleich.
-- Regressionstest mit den neuen ROMs: Boot, DIR, MONTEST (0 Fehler), KRANTEST, DOSTEST, LADETEST, COUNTER-Modul, Werkstatt.
+- ROMs updated to the state of 25 Oct 2026 (core 20261025): `kern`, `dos` and `werkstatt` are new, `basic` and `song` unchanged.
+  The developer fixed the module return in the kernel itself (`jsr anzeige_zuruecksetzen` before `_basic`).
+- The workaround from 0.4.2 now applies only to the old kernel ROM and is switched off automatically with the new ROM. Tested: new ROM with
+  TIEFGANG 1.1 and 1.2, old ROM with and without the workaround.
+- Regression test with the new ROMs: boot, DIR, MONTEST (0 errors), KRANTEST, DOSTEST, LADETEST, COUNTER module, Werkstatt.
 
 ## 0.4.2
-- Fix: Nach Esc im TIEFGANG-Titel (und überhaupt bei jeder Rückkehr eines Moduls mit RTL) bleibt das Bild des Moduls stehen,
-  obwohl BASIC läuft – Eingaben scheinen tot. Ursache: das Kern-ROM setzt die Anzeige auf diesem Weg nicht zurück. Der
-  Emulator tut es jetzt vor dem BASIC-Start (`--no-module-fix` schaltet das ab).
+- Fix: after Esc in the TIEFGANG title (and in general whenever a module returns with RTL) the module's picture stayed on screen
+  although BASIC was running – input seemed dead. Cause: the kernel ROM does not reset the display on this path. The
+  emulator now does it before the BASIC start (`--no-module-fix` turns this off).
 
 ## 0.4.1
-- Fix: Dateien werden als Satz geladen (Drag & Drop mehrerer Dateien und mehrere `--run`): Module/Images, dann Datendateien,
-  zuletzt Programme mit Autostart, alles im selben Augenblick. Vorher öffnete schon `ebene_a.mer` allein die Werkstatt
-  (überschriebene Tastentabelle des Kerns) und zerstörte damit die Daten für KOBOLDE und GRAFIK.
-- Testhilfe: Umgebungsvariable `MERIDIAN_SHOT_AFTER=N` speichert nach N Bildern einen Screenshot und beendet.
+- Fix: files are loaded as a set (drag and drop of several files and several `--run`): modules/images, then data files,
+  finally programs with autostart, all at the same moment. Before, `ebene_a.mer` alone opened the Werkstatt (overwritten key table of the kernel)
+  and thereby destroyed the data for KOBOLDE and GRAFIK.
+- Test aid: the environment variable `MERIDIAN_SHOT_AFTER=N` saves a screenshot after N frames and quits.
 
 ## 0.4.0
-- Neu: BOTE – `.MER`-Programme laden (Chip-RAM und Zusatzspeicher, Autostart per NMI wie „REMOTE START“), `.MOD`-Module
-  (schreibgeschützt ab `$40:0000`, überstehen Reset und Kaltstart, Auswerfen mit Cmd+E), Speicherstand als `.sav` = Laufwerk 0.
-- Neu: `--run` (mehrfach), `--module`, `--no-module-start`; Drag & Drop erkennt `.mer`, `.mod` und Images.
-- Reset ist jetzt wie am Gerät (RAM bleibt), Cmd+Shift+R ist der Kaltstart.
-- TRUHE: Speicherstand-Laufwerk wächst beim Schreiben, ungeschriebene Blöcke lesen als Nullen.
-- Getestet: MONTEST (2×256 Opcodes, 0 Fehler), KRANTEST, DOSTEST, LADETEST (inkl. Grenze Chip-RAM/Zusatzspeicher),
-  KOBOLDE, GRAFIK, BALLETT, COUNTER-Modul.
+- New: BOTE – load `.MER` programs (chip RAM and expansion memory, autostart via NMI like "REMOTE START"), `.MOD` modules
+  (write-protected from `$40:0000`, survive reset and cold start, eject with Cmd+E), saved state as `.sav` = drive 0.
+- New: `--run` (repeatable), `--module`, `--no-module-start`; drag and drop recognises `.mer`, `.mod` and images.
+- Reset is now like on the machine (RAM is kept), Cmd+Shift+R is the cold start.
+- TRUHE: the saved-state drive grows when written, unwritten blocks read as zeros.
+- Tested: MONTEST (2×256 opcodes, 0 errors), KRANTEST, DOSTEST, LADETEST (including the chip RAM/expansion memory boundary),
+  KOBOLDE, GRAFIK, BALLETT, COUNTER module.
 
 ## 0.3.0
-- Neu: KOBOLD – 32 Sprites mit Spiegeln, doppelter Größe, „hinter Ebene B“, Kollisionsflags (`HIT`), Kontur.
-- Neu: LOTSE (Copper) – `GRADIENT` und eigene Copper-Listen funktionieren.
-- Neu: PINSEL-Look – Glanz (`SHINE`), Leuchten (`GLOW`), Tusche (`INK`: Kontur, Schlagschatten).
-- PINSEL zeichnet jetzt wie die Hardware eine Zeile im Voraus; Palettenwechsel (CPU oder Copper) wirken punktgenau in der Zeile.
-- Interrupt „Bildende“ wird nur noch gemeldet, wenn er erlaubt ist (wie im Verilog-Code).
-- Getestet mit STARFALL, REGENBOG, ABEND, GLOWMINE (Titel und Spiel) und einem eigenen Sprite/INK/GLOW-Test.
+- New: KOBOLD – 32 sprites with mirroring, double size, "behind layer B", collision flags (`HIT`), outline.
+- New: LOTSE (copper) – `GRADIENT` and your own copper lists work.
+- New: PINSEL look – shine (`SHINE`), glow (`GLOW`), ink (`INK`: outline, drop shadow).
+- PINSEL now draws one line ahead like the hardware; palette changes (CPU or copper) take effect to the pixel within the line.
+- The "frame end" interrupt is now reported only when it is enabled (as in the Verilog code).
+- Tested with STARFALL, REGENBOG, ABEND, GLOWMINE (title and game) and a sprite/INK/GLOW test of its own.
 
 ## 0.2.0
-- Neu: TRUHE – Laufwerke 0–2 mit Blocklesen/-schreiben (bis 16 Blöcke je Auftrag), EINGELEGT/WECHSEL-Merker,
-  schreibgeschützte Images. `DIR`, `LOAD`, `SAVE` laufen gegen echte `.DSK`-Images.
-- Neu: `--disk0/1/2`, Drag & Drop von Images aufs Fenster, Cmd+1/Cmd+2 zum Auswerfen, Laufwerke im Fenstertitel.
+- New: TRUHE – drives 0–2 with block reading/writing (up to 16 blocks per job), INSERTED/CHANGED flags,
+  write-protected images. `DIR`, `LOAD`, `SAVE` work against real `.DSK` images.
+- New: `--disk0/1/2`, drag and drop of images onto the window, Cmd+1/Cmd+2 to eject, drives in the window title.
 
 ## 0.1.1
-- Fix: Zifferntasten 1–9 lieferten die jeweils nächste Ziffer (Scancode-Tabelle um eins verschoben).
-- Versionsnummer im Fenstertitel, bei `--version` und im Namen des ZIP.
+- Fix: the digit keys 1–9 produced the next digit each (scancode table shifted by one).
+- Version number in the window title, with `--version` and in the name of the ZIP.
 
 ## 0.1.0
-- Erste Fassung: 65C816, Speicherkarte, PINSEL, PFORTE, KRAN, SDL2-Frontend.
+- First version: 65C816, memory map, PINSEL, PFORTE, KRAN, SDL2 front end.
