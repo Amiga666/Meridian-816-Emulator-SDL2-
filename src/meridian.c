@@ -7,6 +7,25 @@
 #define CHIPMASK 0x3FFFF
 
 /* ------------------------------------------------------------ PFORTE --- */
+/* Kalenderuhr wie pforte.sv: sie laeuft von selbst weiter (hier: die Uhr des
+   Rechners plus einem Versatz, falls ein Programm sie gestellt hat). Gelesen
+   wird immer der mit $37 festgehaltene Stand, damit die sieben Bytes
+   zusammenpassen. */
+#define BCD(n) ((uint8_t)((((n) / 10) << 4) | ((n) % 10)))
+#define UNBCD(b) ((b) / 16 * 10 + (b) % 16)
+static void rtc_jetzt(Machine *m, uint8_t *ziel) {
+    time_t t = time(NULL) + m->rtc_versatz; struct tm *tm = localtime(&t);
+    ziel[0] = BCD(tm->tm_sec); ziel[1] = BCD(tm->tm_min); ziel[2] = BCD(tm->tm_hour); ziel[3] = BCD(tm->tm_mday);
+    ziel[4] = BCD(tm->tm_mon + 1); ziel[5] = BCD(tm->tm_year % 100); ziel[6] = (uint8_t)tm->tm_wday;
+}
+static void rtc_stellen(Machine *m) {            /* $30 geschrieben: aus $30-$36 den Versatz rechnen */
+    time_t jetzt = time(NULL); struct tm tm = *localtime(&jetzt);
+    tm.tm_sec = UNBCD(m->rtc[0]); tm.tm_min = UNBCD(m->rtc[1]); tm.tm_hour = UNBCD(m->rtc[2]);
+    tm.tm_mday = UNBCD(m->rtc[3]); tm.tm_mon = UNBCD(m->rtc[4]) - 1; tm.tm_year = 100 + UNBCD(m->rtc[5]);
+    tm.tm_isdst = -1;
+    time_t soll = mktime(&tm);
+    if (soll != (time_t)-1) m->rtc_versatz = (long)(soll - jetzt);
+}
 static void pf_update_irq(Machine *m) { (void)m; }
 static uint8_t pf_rd(Machine *m, int r) {
     switch (r) {
@@ -26,7 +45,7 @@ static uint8_t pf_rd(Machine *m, int r) {
     case 0x24: return m->mbtn_f; case 0x25: { int8_t w = m->mw_f; m->mw_f = 0; return w; }
     case 0x26: return m->mxmax; case 0x27: return m->mxmax >> 8;
     case 0x28: return m->mymax; case 0x29: return m->mymax >> 8;
-    case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: case 0x36: return m->rtc[r - 0x30];
+    case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: case 0x36: return m->rtc_fest[r - 0x30];
     case 0x37: return 1;
     }
     return 0;
@@ -48,6 +67,9 @@ static void pf_wr(Machine *m, int r, uint8_t v) {
     case 0x26: m->mxmax = (m->mxmax & 0xFF00) | v; break; case 0x27: m->mxmax = (m->mxmax & 0xFF) | (v << 8); break;
     case 0x28: m->mymax = (m->mymax & 0xFF00) | v; break; case 0x29: m->mymax = (m->mymax & 0xFF) | (v << 8); break;
     case 0x2A: m->mx_f = m->mx; m->my_f = m->my; m->mbtn_f = m->mbtn; m->mw_f += m->mwheel; m->mwheel = 0; break;
+    case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: case 0x36:
+        m->rtc[r - 0x30] = v; if (r == 0x30) rtc_stellen(m); break;      /* Uhr stellen (wie pforte.sv: $30 uebernimmt) */
+    case 0x37: rtc_jetzt(m, m->rtc_fest); break;                        /* Stand festhalten */
     }
     pf_update_irq(m);
 }
@@ -561,11 +583,10 @@ static void copper_run(Machine *m, int ln, uint64_t clk) {
 }
 
 /* ---------------------------------------------------------- Ablauf ------ */
-static void update_rtc(Machine *m) {
-    time_t t = time(NULL); struct tm *tm = localtime(&t);
-#define BCD(n) ((uint8_t)((((n) / 10) << 4) | ((n) % 10)))
-    m->rtc[0] = BCD(tm->tm_sec); m->rtc[1] = BCD(tm->tm_min); m->rtc[2] = BCD(tm->tm_hour); m->rtc[3] = BCD(tm->tm_mday);
-    m->rtc[4] = BCD(tm->tm_mon + 1); m->rtc[5] = BCD(tm->tm_year % 100); m->rtc[6] = tm->tm_wday;
+static void update_rtc(Machine *m) {            /* beim Reset: Uhr der Rechner uebernehmen */
+    m->rtc_versatz = 0;
+    rtc_jetzt(m, m->rtc);
+    rtc_jetzt(m, m->rtc_fest);
 }
 static bool read_file(const char *dir, const char *name, uint8_t *dst, size_t n) {
     char p[1024]; snprintf(p, sizeof p, "%s/%s", dir, name);

@@ -27,7 +27,7 @@ typedef struct Machine {
     uint64_t us; uint32_t us_frozen; bool us_frz; int us_acc;
     uint16_t ta_start, ta_cnt, tb_start, tb_cnt; uint8_t ta_ctl, tb_ctl;
     uint16_t mx, my, mxmax, mymax; uint8_t mbtn; int8_t mwheel; uint16_t mx_f, my_f; uint8_t mbtn_f; int8_t mw_f;
-    uint8_t rtc[8];
+    uint8_t rtc[8], rtc_fest[8]; long rtc_versatz;   /* Kalenderuhr: gestellter Stand, festgehaltener Stand ($37), Versatz zur Rechneruhr */
     /* TRUHE: drei Laufwerke, Puffer 8 KB = 16 Seiten */
     FILE *drv[3]; uint32_t drv_blocks[3]; bool drv_ro[3], drv_grow[3]; uint8_t truhe_in, truhe_chg, truhe_err; uint8_t truhe_buf[8192];
     /* KOBOLD */

@@ -189,6 +189,10 @@ int main(int argc, char **argv) {
     SDL_Window *win = SDL_CreateWindow("MERIDIAN 816 – Emulator v" MERIDIAN_EMU_VERSION, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                        480 * scale, 360 * scale, SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     if (!win) { fprintf(stderr, "Fenster: %s\n", SDL_GetError()); return 1; }
+    /* Fenstergroesse vor dem Vollbild: manche Fenstermanager (Linux, HiDPI/Wayland) geben beim Verlassen des Vollbilds eine
+       viel kleinere Groesse zurueck. Deshalb merken wir sie uns und setzen sie danach selbst wieder durch. */
+    int win_w = 480 * scale, win_h = 360 * scale, win_x = 0, win_y = 0, win_back = 0; bool win_msg = false;
+    SDL_GetWindowSize(win, &win_w, &win_h); SDL_GetWindowPosition(win, &win_x, &win_y);
     int drchk = 0; int astat = 0; SDL_AudioDeviceID adev = 0; bool muted = false, aplay = false;
     if (!noaudio) {
         SDL_AudioSpec want, have; SDL_zero(want); want.freq = 48000; want.format = AUDIO_S16SYS; want.channels = 2; want.samples = 1024;
@@ -224,7 +228,13 @@ int main(int argc, char **argv) {
                     case SDL_SCANCODE_2: m_eject(m, 2); disk_name[2] = NULL; update_title(win); break;
                     case SDL_SCANCODE_D: if (dr_path[0]) open_folder(dr_path); else fprintf(stderr, "Laufwerk 3: kein Ordner (--no-dienst?)\n"); break;
                     case SDL_SCANCODE_P: pal = !pal; m_set_pal(m, pal); break;
-                    case SDL_SCANCODE_F: full = !full; SDL_SetWindowFullscreen(win, full ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0); break;
+                    case SDL_SCANCODE_F:
+                        full = !full;
+                        if (full) {
+                            if (!(SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN)) { SDL_GetWindowSize(win, &win_w, &win_h); SDL_GetWindowPosition(win, &win_x, &win_y); }
+                            SDL_SetWindowFullscreen(win, SDL_WINDOW_FULLSCREEN_DESKTOP); win_back = 0;
+                        } else { SDL_SetWindowFullscreen(win, 0); win_back = 120; win_msg = false; }      /* danach 2 s lang die alte Groesse durchsetzen (der Fenstermanager meldet sich oft erst spaeter) */
+                        break;
                     case SDL_SCANCODE_S: { SDL_Surface *s = SDL_CreateRGBSurfaceWithFormatFrom(m->fb, SCR_W, SCR_H, 32, SCR_W * 4, SDL_PIXELFORMAT_ARGB8888);
                         if (s) { SDL_SaveBMP(s, "meridian-screenshot.bmp"); SDL_FreeSurface(s); fprintf(stderr, "meridian-screenshot.bmp\n"); } } break;
                     default: break;
@@ -271,6 +281,18 @@ int main(int argc, char **argv) {
             }
             if (!aplay && SDL_GetQueuedAudioSize(adev) >= 48000 * 4 / 10) { SDL_PauseAudioDevice(adev, 0); aplay = true; }
             if (getenv("MERIDIAN_AUDIO_STATS") && (++astat % 60) == 0) fprintf(stderr, "Ton-Warteschlange: %u ms\n", SDL_GetQueuedAudioSize(adev) / 192);   /* Testhilfe */
+        }
+        if (win_back > 0) {                                        /* nach dem Vollbild: Fenster wieder so gross wie vorher */
+            win_back--;
+            if (getenv("MERIDIAN_FENSTER_DEBUG") && win_back % 6 == 0) { int dw, dh; SDL_GetWindowSize(win, &dw, &dh); fprintf(stderr, "Fenster-Debug: noch %d, Flags 0x%x, Groesse %dx%d, soll %dx%d\n", win_back, SDL_GetWindowFlags(win), dw, dh, win_w, win_h); }
+            if (win_back % 6 == 0 && !(SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN)) {
+                int cw, ch; SDL_GetWindowSize(win, &cw, &ch);
+                if (cw != win_w || ch != win_h) {
+                    if (!win_msg) { fprintf(stderr, "Fenster: nach dem Vollbild %dx%d statt %dx%d, setze zurueck\n", cw, ch, win_w, win_h); win_msg = true; }
+                    SDL_SetWindowSize(win, win_w, win_h); SDL_SetWindowPosition(win, win_x, win_y);
+                    if (win_back < 30) win_back = 30;                  /* der Fenstermanager antwortet verzoegert: noch ein paar Versuche */
+                }
+            }
         }
         SDL_UpdateTexture(tex, NULL, m->fb, SCR_W * 4);
         int ww, wh; SDL_GetRendererOutputSize(ren, &ww, &wh); SDL_Rect r = view_rect(ww, wh);
