@@ -193,6 +193,21 @@ int main(int argc, char **argv) {
        viel kleinere Groesse zurueck. Deshalb merken wir sie uns und setzen sie danach selbst wieder durch. */
     int win_w = 480 * scale, win_h = 360 * scale, win_x = 0, win_y = 0, win_back = 0; bool win_msg = false;
     SDL_GetWindowSize(win, &win_w, &win_h); SDL_GetWindowPosition(win, &win_x, &win_y);
+    /* Tastatur: gebraucht werden nur Scancodes (Tastenposition), keine Texteingabe. SDL2 hat die Texteingabe aber von sich aus an, und unter
+       Linux fragt es damit bei jeder Taste die Eingabemethode (IBus, Fcitx ...). Die nimmt Tasten, die ein Nicht-ASCII-Zeichen ergeben
+       (beim deutschen Layout ae, oe, ue, ss mit Punkten bzw. Haken), fuer sich - SDL liefert dann gar kein KEYDOWN, und der MERIDIAN sieht keinen
+       Tastendruck. Mit US-Layout (dieselben Tasten ergeben ASCII) merkt man nichts. Darum: Texteingabe aus, und bei jedem Fokuswechsel noch
+       einmal, falls Fenstermanager oder Eingabemethode sie wieder einschalten. Unter macOS gibt es das Problem nicht (und dort ist der Code
+       erprobt), deshalb gilt es nur auf den anderen Systemen. MERIDIAN_TASTEN_DEBUG=1 zeigt jedes Tastenereignis auf stderr,
+       MERIDIAN_TEXTEINGABE=1 laesst die Texteingabe an (zum Vergleichen). */
+#ifndef __APPLE__
+    const bool text_aus = getenv("MERIDIAN_TEXTEINGABE") == NULL;     /* MERIDIAN_TEXTEINGABE=1: SDL-Texteingabe wie frueher an (nur zum Vergleichen) */
+#else
+    const bool text_aus = false;
+#endif
+#define TEXTEINGABE_AUS() do { if (text_aus) { SDL_StopTextInput(); SDL_EventState(SDL_TEXTINPUT, SDL_DISABLE); SDL_EventState(SDL_TEXTEDITING, SDL_DISABLE); } } while (0)
+    TEXTEINGABE_AUS();
+    const bool key_debug = getenv("MERIDIAN_TASTEN_DEBUG") != NULL;
     int drchk = 0; int astat = 0; SDL_AudioDeviceID adev = 0; bool muted = false, aplay = false;
     if (!noaudio) {
         SDL_AudioSpec want, have; SDL_zero(want); want.freq = 48000; want.format = AUDIO_S16SYS; want.channels = 2; want.samples = 1024;
@@ -215,8 +230,11 @@ int main(int argc, char **argv) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) run = false;
+            else if (e.type == SDL_WINDOWEVENT) { if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) TEXTEINGABE_AUS(); }
             else if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
                 bool dn = e.type == SDL_KEYDOWN;
+                if (key_debug) fprintf(stderr, "Taste: %s scancode=%d (%s) Zeichen=%s\n", dn ? "runter" : "hoch", (int)e.key.keysym.scancode,
+                                       SDL_GetScancodeName(e.key.keysym.scancode), SDL_GetKeyName(e.key.keysym.sym));
                 if (SDL_GetModState() & KMOD_GUI) {                       /* Host-Hotkeys */
                     if (dn && !e.key.repeat) switch (e.key.keysym.scancode) {
                     case SDL_SCANCODE_Q: run = false; break;
