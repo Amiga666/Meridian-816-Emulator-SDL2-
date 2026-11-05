@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.8.4
+- **Fix (Linux): umlauts (ä, ö, ü, ß) could not be typed with the German keyboard layout, although they worked with the US layout.** The emulator translates keys by
+  physical position only, so both layouts produce the same scancodes. The cause was SDL's text input, which SDL2 leaves on by default: with an input method running
+  (IBus is the default on Linux Mint; `XMODIFIERS`, `GTK_IM_MODULE` and `QT_IM_MODULE` set to `ibus`) SDL asks it about every key, and IBus claims the keys that yield a non-ASCII
+  character. SDL then sends no `KEYDOWN` at all, so the MERIDIAN never sees the key. With the US layout the same physical keys yield `;`, `'` and `[` (ASCII), which IBus passes on,
+  so nothing was noticed. macOS has no such input method, so it was never affected.
+  The emulator now turns SDL's text input off after creating the window (`SDL_StopTextInput()`, plus `SDL_EventState` for `SDL_TEXTINPUT` and `SDL_TEXTEDITING`) and does it again
+  whenever the window gains focus, in case a window manager or input method switches it back on. This is done on every system except macOS, where the code is proven and the problem does not exist.
+  New environment variables: `MERIDIAN_TASTEN_DEBUG=1` prints every key event to stderr (scancode, key name); `MERIDIAN_TEXTEINGABE=1` leaves the text input on, as before (for comparison).
+- Tested on Linux X11 with the real emulator (TigerVNC as X server, IBus running with the variables above, German layout; six keys ö ä ü ß y/z a, then three more after the
+  window had lost and regained focus; counted by `MERIDIAN_TASTEN_DEBUG`):
+  - SDL 2.30.0, 2.26.5, 2.0.20, 2.0.14: with `MERIDIAN_TEXTEINGABE=1` (old behaviour) 2 of 6 keys and 0 of 3 after the focus change arrive; with the fix 6 of 6 and 3 of 3.
+  - SDL 2.0.10 and 2.0.8: the problem does not occur here, 6 of 6 either way; the fix is harmless there. (These two were built from source without audio, so the test used a copy of
+    `main.c` that initialises video only; the key handling is identical.)
+  - With the fix, also 6 of 6 for: US layout with IBus, German layout without IBus, US layout without IBus (SDL 2.30.0).
+  - Without a rebuild, `IBUS_ADDRESS=unix:path=/tmp/nothing ./meridian` also worked (it hides the IBus daemon from SDL); clearing `XMODIFIERS`, `GTK_IM_MODULE`, `QT_IM_MODULE` or setting
+    `SDL_IM_MODULE=none` did not help.
+- **Limits of these tests:** run in a sandbox, not on Linux Mint itself; IBus there may be configured differently. **Fcitx** (the other common input method) could not be reproduced: it was in the
+  "off" state and passed all keys with and without the fix, so nothing can be said about it; the fix disables the same mechanism for it. Dead keys (`^`, `´`) were not measured.
+  Wayland sessions, other input methods (SCIM, uim, XIM servers) and Windows were not tested; on Windows the same call is made, untested.
+
 ## 0.8.3
 - **Documentation:** `README.md` is now bilingual (German and English) and lists every third-party program, library and data source with its origin and license
   (section "Sources and licenses"). This changelog is English only. Two outdated passages in the README were corrected: it claimed drive 3 did not exist yet,

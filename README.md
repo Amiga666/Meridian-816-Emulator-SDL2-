@@ -1,4 +1,4 @@
-# MERIDIAN 816 – Emulator (Stufe 1 / Stage 1, 0.8.3)
+# MERIDIAN 816 – Emulator (Stufe 1 / Stage 1, 0.8.4)
 
 **[Deutsch](#deutsch) · [English](#english)**
 
@@ -32,6 +32,9 @@ Hotkeys (Cmd-Taste auf dem Mac, Windows-Taste am PC): **Cmd+C** Mauszeiger des B
 **Cmd+F** Vollbild, **Cmd+S** Screenshot (`meridian-screenshot.bmp`), **Cmd+D** Ordner von Laufwerk 3 im Dateimanager zeigen (dort liegen auch die gedruckten PDFs), **Cmd+Q** Beenden.
 Die Tasten werden als PS/2-Scancodes (Satz 2) nach Tastenposition weitergereicht, das Kern-ROM
 macht daraus das deutsche Layout. Beide Alt/Option-Tasten wirken als AltGr (@, {, [ …).
+**Linux:** Der Emulator schaltet die Texteingabe von SDL ab. Sonst fragt SDL bei jeder Taste die Eingabemethode (IBus, Fcitx), und die nimmt beim deutschen Layout
+ä, ö, ü und ß für sich – der MERIDIAN sieht dann keinen Tastendruck (mit US-Layout merkt man es nicht, dieselben Tasten ergeben dort ASCII).
+`MERIDIAN_TASTEN_DEBUG=1` zeigt jedes Tastenereignis (Scancode, Taste) auf stderr, `MERIDIAN_TEXTEINGABE=1` lässt die Texteingabe zum Vergleichen an.
 
 ## Disketten
 
@@ -185,7 +188,8 @@ oder gehört dem Benutzer.
 
 **Nur zum Prüfen benutzt (nicht im Paket):** Klaus Dormanns 6502-Funktionstest (<https://github.com/Klaus2m5/6502_65C02_functional_tests>, GPL-3.0) und die
 SingleStepTests (<https://github.com/SingleStepTests/65x02>) für die 6502-CPU von `sidkern`; libsidplayfp/sidplayfp (<https://github.com/libsidplayfp/libsidplayfp>) als Vergleich für
-den SID-Klang; `qpdf` und `poppler-utils` (`pdftotext`, `pdfinfo`, `pdftoppm`) zum Prüfen der PDF-Dateien; Xvfb, Openbox und xdotool (X11) zum Prüfen des Fensterwechsels.
+den SID-Klang; `qpdf` und `poppler-utils` (`pdftotext`, `pdfinfo`, `pdftoppm`) zum Prüfen der PDF-Dateien; Xvfb, Openbox, TigerVNC (`Xtigervnc`), IBus, Fcitx 4 und xdotool (X11) zum Prüfen des Fensterwechsels und der Tastatur; selbst gebaute SDL-Versionen 2.0.8, 2.0.10, 2.0.14, 2.0.20 und 2.26.5
+(<https://github.com/libsdl-org/SDL>, zlib) zum Prüfen auf älteren Systemen.
 
 ---
 
@@ -211,6 +215,9 @@ Without SDL there is a test run: `make headless && ./meridian-headless roms 300 
 Hotkeys (Cmd key on the Mac, Windows key on a PC): **Cmd+C** show/hide the operating system's mouse pointer (it is hidden over the window because the MERIDIAN draws its own; `--show-cursor` keeps it visible), **Cmd+M** sound off/on, **Cmd+R** reset, **Cmd+P** PAL/NTSC,
 **Cmd+F** full screen, **Cmd+S** screenshot (`meridian-screenshot.bmp`), **Cmd+D** show the folder of drive 3 in the file manager (printed PDFs end up there, too), **Cmd+Q** quit.
 Keys are passed on as PS/2 scancodes (set 2) by key position; the core ROM turns them into the German layout. Both Alt/Option keys work as AltGr (@, {, [ …).
+**Linux:** the emulator turns SDL's text input off. Otherwise SDL asks the input method (IBus, Fcitx) about every key, and with the German layout it takes
+ä, ö, ü and ß for itself – the MERIDIAN then sees no key press at all (with the US layout you do not notice, the same keys produce ASCII there).
+`MERIDIAN_TASTEN_DEBUG=1` prints every key event (scancode, key) to stderr, `MERIDIAN_TEXTEINGABE=1` keeps text input on for comparison.
 
 ## Disks
 
@@ -364,4 +371,5 @@ or belongs to the user.
 
 **Used for testing only (not in the package):** Klaus Dormann's 6502 functional test (<https://github.com/Klaus2m5/6502_65C02_functional_tests>, GPL-3.0) and the
 SingleStepTests (<https://github.com/SingleStepTests/65x02>) for `sidkern`'s 6502 CPU; libsidplayfp/sidplayfp (<https://github.com/libsidplayfp/libsidplayfp>) as a comparison for
-the SID sound; `qpdf` and `poppler-utils` (`pdftotext`, `pdfinfo`, `pdftoppm`) to check the PDF files; Xvfb, Openbox and xdotool (X11) to check the window switching.
+the SID sound; `qpdf` and `poppler-utils` (`pdftotext`, `pdfinfo`, `pdftoppm`) to check the PDF files; Xvfb, Openbox, TigerVNC (`Xtigervnc`), IBus, Fcitx 4 and xdotool (X11) to check the window switching and the keyboard; self-built SDL versions 2.0.8, 2.0.10, 2.0.14, 2.0.20 and 2.26.5
+(<https://github.com/libsdl-org/SDL>, zlib) to check older systems.
