@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "meridian.h"
 #include "version.h"
 #include "dienst.h"
@@ -106,13 +107,71 @@ static void load_set(Machine *m, SDL_Window *win, char **files, int n, bool shif
             if (a == pass && !m_load_program(m, files[i])) fprintf(stderr, "'%s' konnte nicht geladen werden\n", files[i]);
         }
 }
+/* ---- Host-Hotkeys (Beenden, Vollbild, Reset ...). Sie duerfen weder vom Betriebssystem abgefangen werden noch Tasten brauchen, die der MERIDIAN
+   selbst benutzt (er bekommt Buchstaben, Ziffern, F1-F12, Strg, Umschalt und Alt/Option als AltGr). Standard je System:
+     macOS    Cmd + Buchstabe
+     Linux    Win (Super) + Buchstabe
+     Windows  Strg + Umschalt + Buchstabe   (Win+Buchstabe ist dort fast durchgehend vom System belegt: Win+D, E, R, S, M, P, Q, F, C, 1, 2 ...)
+   Aenderbar mit --hotkey oder MERIDIAN_HOTKEY:
+     gui | ctrl+shift | ctrl | alt | shift+alt ...   Modifier gedrueckt halten, dann die Taste (Q, F, R ...)
+     f12 | scrolllock | pause | printscreen | menu   Haltetaste: gedrueckt halten, dann die Taste; sie geht nicht an den MERIDIAN
+   Die GUI-Taste (Cmd/Win/Super) gilt zusaetzlich immer, wo das System sie durchlaesst. */
+typedef struct { int mods; SDL_Scancode lead; } HostKey;
+#ifdef _WIN32
+#define HOTKEY_STANDARD "ctrl+shift"
+#else
+#define HOTKEY_STANDARD "gui"                                  /* macOS: Cmd, Linux: Win/Super */
+#endif
+static bool hk_parse(const char *spec, HostKey *h) {
+    char b[96]; snprintf(b, sizeof b, "%s", spec); h->mods = 0; h->lead = SDL_SCANCODE_UNKNOWN;
+    for (char *t = strtok(b, "+- "); t; t = strtok(NULL, "+- ")) {
+        for (char *c = t; *c; c++) *c = (char)tolower((unsigned char)*c);
+        if (!strcmp(t, "gui") || !strcmp(t, "cmd") || !strcmp(t, "win") || !strcmp(t, "super") || !strcmp(t, "meta")) h->mods |= KMOD_GUI;
+        else if (!strcmp(t, "ctrl") || !strcmp(t, "strg") || !strcmp(t, "control")) h->mods |= KMOD_CTRL;
+        else if (!strcmp(t, "shift") || !strcmp(t, "umschalt")) h->mods |= KMOD_SHIFT;
+        else if (!strcmp(t, "alt") || !strcmp(t, "option")) h->mods |= KMOD_ALT;
+        else if (!strcmp(t, "f12")) h->lead = SDL_SCANCODE_F12;
+        else if (!strcmp(t, "scrolllock") || !strcmp(t, "rollen")) h->lead = SDL_SCANCODE_SCROLLLOCK;
+        else if (!strcmp(t, "pause")) h->lead = SDL_SCANCODE_PAUSE;
+        else if (!strcmp(t, "printscreen") || !strcmp(t, "prtsc") || !strcmp(t, "druck")) h->lead = SDL_SCANCODE_PRINTSCREEN;
+        else if (!strcmp(t, "menu") || !strcmp(t, "application")) h->lead = SDL_SCANCODE_APPLICATION;
+        else return false;
+    }
+    return (h->mods != 0) != (h->lead != SDL_SCANCODE_UNKNOWN);        /* entweder Modifier oder Haltetaste */
+}
+/* sind alle gewuenschten Modifier-Gruppen (links oder rechts) gedrueckt? */
+static bool hk_mods_down(int want, int have) {
+    static const int grp[4] = { KMOD_GUI, KMOD_CTRL, KMOD_SHIFT, KMOD_ALT };
+    for (int i = 0; i < 4; i++) if ((want & grp[i]) && !(have & grp[i])) return false;
+    return want != 0;
+}
+static bool hk_is_action(SDL_Scancode sc) {
+    switch (sc) { case SDL_SCANCODE_Q: case SDL_SCANCODE_C: case SDL_SCANCODE_M: case SDL_SCANCODE_R: case SDL_SCANCODE_K: case SDL_SCANCODE_E:
+    case SDL_SCANCODE_1: case SDL_SCANCODE_2: case SDL_SCANCODE_D: case SDL_SCANCODE_P: case SDL_SCANCODE_F: case SDL_SCANCODE_S: return true;
+    default: return false; }
+}
+static void hk_describe(const HostKey *h, char *out, size_t n) {
+    out[0] = 0;
+    if (h->lead) { snprintf(out, n, "%s", SDL_GetScancodeName(h->lead)); return; }
+#ifdef __APPLE__
+    if (h->mods & KMOD_GUI) strncat(out, "Cmd+", n - strlen(out) - 1);
+#else
+    if (h->mods & KMOD_GUI) strncat(out, "Win+", n - strlen(out) - 1);
+#endif
+    if (h->mods & KMOD_CTRL) strncat(out, "Strg+", n - strlen(out) - 1);
+    if (h->mods & KMOD_SHIFT) strncat(out, "Umschalt+", n - strlen(out) - 1);
+    if (h->mods & KMOD_ALT) strncat(out, "Alt+", n - strlen(out) - 1);
+    size_t l = strlen(out); if (l) out[l - 1] = 0;                  /* letztes '+' weg */
+}
+
 static void usage(const char *p) {
-    fprintf(stderr, "MERIDIAN 816 Emulator v" MERIDIAN_EMU_VERSION "\nAufruf: %s [--roms DIR] [--pal] [--no-sdram] [--module DATEI] [--scale N] [--run DATEN.MER ... --run PROG.MER] [--module M.MOD] [--no-module-start] [--no-module-fix] [--no-audio] [--ordner DIR (Standard: sdcard neben dem Programm)] [--no-dienst] [--show-cursor] [--ablage-port N (0 = aus, Standard 8816)] [--dienst-test] [--disk1 IMG] [--disk2 IMG] [--disk0 IMG] [--fullscreen] [--version]\n"
-        "Hotkeys mit der Cmd-Taste (Windows/Super-Taste auf PC):\n"
-        "  Cmd+R Reset   Cmd+P PAL/NTSC   Cmd+F Vollbild   Cmd+S Screenshot   Cmd+Q Ende\n  Cmd+C Mauszeiger zeigen/verbergen   Cmd+M Ton aus/an   Laufwerk 3 = Ordner DIR/files (Cmd+D zeigt ihn: dort liegen auch gedruckte PDFs)   Cmd+Shift+R Kaltstart   Cmd+E Modul auswerfen   Cmd+1 / Cmd+2 Laufwerk 1 / 2 auswerfen.   Datei auf das Fenster ziehen: .mer = Programm laden, .mod = Modul stecken, sonst Laufwerk 1 (Shift: 2)\n", p);
+    fprintf(stderr, "MERIDIAN 816 Emulator v" MERIDIAN_EMU_VERSION "\nAufruf: %s [--roms DIR] [--pal] [--no-sdram] [--module DATEI] [--scale N] [--run DATEN.MER ... --run PROG.MER] [--module M.MOD] [--no-module-start] [--no-module-fix] [--no-audio] [--ordner DIR (Standard: sdcard neben dem Programm)] [--no-dienst] [--show-cursor] [--hotkey MODIFIER] [--ablage-port N (0 = aus, Standard 8816)] [--dienst-test] [--disk1 IMG] [--disk2 IMG] [--disk0 IMG] [--fullscreen] [--version]\n"
+        "Hotkeys mit der Host-Taste (macOS: Cmd, Linux: Win/Super, Windows: Strg+Umschalt; aenderbar mit --hotkey gui|ctrl+shift|ctrl|alt|f12|scrolllock|pause|printscreen|menu):\n"
+        "  Cmd+R Reset   Cmd+P PAL/NTSC   Cmd+F Vollbild   Cmd+S Screenshot   Cmd+Q Ende\n  Cmd+C Mauszeiger zeigen/verbergen   Cmd+M Ton aus/an   Laufwerk 3 = Ordner DIR/files (Cmd+D zeigt ihn: dort liegen auch gedruckte PDFs)   Cmd+K Kaltstart (mit Cmd/Win auch Cmd+Shift+R)   Cmd+E Modul auswerfen   Cmd+1 / Cmd+2 Laufwerk 1 / 2 auswerfen.   Datei auf das Fenster ziehen: .mer = Programm laden, .mod = Modul stecken, sonst Laufwerk 1 (Shift: 2)\n", p);
 }
 int main(int argc, char **argv) {
     const char *roms = NULL, *module = NULL, *ordner = NULL, *runfile[8] = { NULL },  *disk[3] = { NULL, NULL, NULL }; int nrun = 0, nrun_done = 0; int ablage_port = 8816; bool showcursor = false; bool dtest = false, nodienst = false, noaudio = false, nofix = false, nomod = false, pal = false, sdram = true, full = false; int scale = 2;
+    const char *hotkey_s = getenv("MERIDIAN_HOTKEY");
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--roms") && i + 1 < argc) roms = argv[++i];
         else if (!strcmp(argv[i], "--module") && i + 1 < argc) module = argv[++i];
@@ -123,6 +182,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--no-audio")) noaudio = true;
         else if (!strcmp(argv[i], "--no-dienst")) nodienst = true;
         else if (!strcmp(argv[i], "--show-cursor")) showcursor = true;
+        else if (!strcmp(argv[i], "--hotkey") && i + 1 < argc) hotkey_s = argv[++i];
         else if (!strcmp(argv[i], "--ablage-port") && i + 1 < argc) ablage_port = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--dienst-test")) dtest = true;
         else if (!strcmp(argv[i], "--ordner") && i + 1 < argc) ordner = argv[++i];
@@ -153,12 +213,16 @@ int main(int argc, char **argv) {
         if (base) { snprintf(c1, sizeof c1, "%sdienst/draht.py", base); snprintf(c2, sizeof c2, "%s../dienst/draht.py", base); cand[0] = c1; cand[1] = c2; }
         for (int k = 0; k < 3 && !sp[0]; k++) if (cand[k]) { FILE *f = fopen(cand[k], "r"); if (f) { fclose(f); snprintf(sp, sizeof sp, "%s", cand[k]); } }
         if (sp[0]) { char dp[1200]; snprintf(dp, sizeof dp, "%.*s/bin/mpg123", (int)(strrchr(sp, '/') ? strrchr(sp, '/') - sp : 0), sp);
-            FILE *f = fopen(dp, "r"); if (f) { fclose(f); fprintf(stderr, "DRAHT: Radio-Dekoder: eingebauter MP3-Dekoder (%s)\n", dp); }
+            FILE *f = fopen(dp, "r");
+#ifdef _WIN32
+            if (!f) { strncat(dp, ".exe", sizeof dp - strlen(dp) - 1); f = fopen(dp, "r"); }
+#endif
+            if (f) { fclose(f); fprintf(stderr, "DRAHT: Radio-Dekoder: eingebauter MP3-Dekoder (%s)\n", dp); }
             else fprintf(stderr, "DRAHT: Radio: kein eingebauter MP3-Dekoder (mit make bauen) - sonst wird ffmpeg oder mpg123 aus dem PATH gebraucht\n"); }
         if (!ordner) { snprintf(def, sizeof def, "%ssdcard", base ? base : "./"); ordner = def; }   /* neben dem Programm */
         if (!sp[0]) { fprintf(stderr, "DRAHT: dienst/draht.py nicht gefunden (gesucht neben dem Programm und im aktuellen Ordner) - Laufwerk 3 und NET sind aus\n"); snprintf(dr_status, sizeof dr_status, "AUS (kein draht.py)"); dr_state = 3; }
         else if (dienst_python(py, sizeof py, pyerr, sizeof pyerr)) {
-            fprintf(stderr, "DRAHT: kein brauchbares Python 3 gefunden:%s\n  Python 3.8 oder neuer installieren (macOS: xcode-select --install oder brew install python) oder MERIDIAN_PYTHON=/pfad/python3 setzen.\n", pyerr);
+            fprintf(stderr, "DRAHT: kein brauchbares Python 3 gefunden:%s\n  Python 3.8 oder neuer installieren (macOS: xcode-select --install oder brew install python; Windows: python.org oder MSYS2 pacman -S mingw-w64-x86_64-python) oder MERIDIAN_PYTHON=/pfad/python3 setzen.\n", pyerr);
             snprintf(dr_status, sizeof dr_status, "AUS (kein Python 3)"); dr_state = 3;
         } else if ((pyerr[0] ? (fprintf(stderr, "DRAHT: Hinweis: %s\n", pyerr), 0) : 0), dienst_start(m, sp, ordner, py, ablage_port, err, sizeof err)) { fprintf(stderr, "%s\n", err); snprintf(dr_status, sizeof dr_status, "AUS (Startfehler)"); dr_state = 3; }
         else {
@@ -225,6 +289,13 @@ int main(int argc, char **argv) {
 
     char *dropped[32]; int ndrop = 0; bool dropping = false;
     long shot_after = getenv("MERIDIAN_SHOT_AFTER") ? atol(getenv("MERIDIAN_SHOT_AFTER")) : 0, total = 0;   /* Testhilfe: Screenshot nach N Bildern, dann Ende */
+    HostKey hk; bool lead_down = false;
+    if (!hk_parse(hotkey_s && *hotkey_s ? hotkey_s : HOTKEY_STANDARD, &hk)) {
+        fprintf(stderr, "Hotkey '%s' unbekannt (erlaubt: gui, ctrl, shift, alt, ctrl+shift, ... oder f12, scrolllock, pause, printscreen, menu) - nehme %s\n", hotkey_s, HOTKEY_STANDARD);
+        hk_parse(HOTKEY_STANDARD, &hk);
+    }
+    { char hn[64]; hk_describe(&hk, hn, sizeof hn);
+      fprintf(stderr, "Hotkeys: %s + Q Ende, F Vollbild, R Reset, K Kaltstart, S Screenshot, M Ton, P PAL/NTSC, C Mauszeiger, D Ordner, E Modul, 1/2 Disk aus\n", hn); }
     bool run = true; uint64_t freq = SDL_GetPerformanceFrequency(), next = SDL_GetPerformanceCounter();
     while (run) {
         SDL_Event e;
@@ -235,12 +306,19 @@ int main(int argc, char **argv) {
                 bool dn = e.type == SDL_KEYDOWN;
                 if (key_debug) fprintf(stderr, "Taste: %s scancode=%d (%s) Zeichen=%s\n", dn ? "runter" : "hoch", (int)e.key.keysym.scancode,
                                        SDL_GetScancodeName(e.key.keysym.scancode), SDL_GetKeyName(e.key.keysym.sym));
-                if (SDL_GetModState() & KMOD_GUI) {                       /* Host-Hotkeys */
-                    if (dn && !e.key.repeat) switch (e.key.keysym.scancode) {
+                const SDL_Scancode hsc = e.key.keysym.scancode; const int ms = (int)SDL_GetModState();
+                if (hk.lead && hsc == hk.lead) { lead_down = dn; continue; }                  /* Haltetaste: geht nicht an den MERIDIAN */
+                const bool gui_on = (ms & KMOD_GUI) != 0;                                     /* Cmd/Windows/Super: immer Host (wo das System sie durchlaesst) */
+                const bool host_on = hk.lead ? lead_down : hk_mods_down(hk.mods, ms);
+                if (gui_on || (host_on && (hk.lead || hk_is_action(hsc)))) {                   /* Host-Hotkeys; andere Tasten mit Strg+Umschalt gehen weiter an den MERIDIAN */
+                    const bool shift_is_host = !gui_on && !hk.lead && (hk.mods & KMOD_SHIFT);   /* Umschalt gehoert zur Host-Taste: Kaltstart dann mit K */
+                    const bool cold = (ms & KMOD_SHIFT) && !shift_is_host;
+                    if (dn && !e.key.repeat) switch (hsc) {
                     case SDL_SCANCODE_Q: run = false; break;
                     case SDL_SCANCODE_C: showcursor = !showcursor; SDL_ShowCursor(showcursor ? SDL_ENABLE : SDL_DISABLE); break;
                     case SDL_SCANCODE_M: muted = !muted; fprintf(stderr, muted ? "Ton aus\n" : "Ton an\n"); break;
-                    case SDL_SCANCODE_R: m_reset(m, (SDL_GetModState() & KMOD_SHIFT) != 0); break;
+                    case SDL_SCANCODE_R: m_reset(m, cold); break;
+                    case SDL_SCANCODE_K: m_reset(m, true); break;
                     case SDL_SCANCODE_E: m_eject_module(m); mod_name[0] = 0; update_title(win); break;
                     case SDL_SCANCODE_1: m_eject(m, 1); disk_name[1] = NULL; update_title(win); break;
                     case SDL_SCANCODE_2: m_eject(m, 2); disk_name[2] = NULL; update_title(win); break;
