@@ -1,7 +1,8 @@
 # MERIDIAN 816 Emulator – macOS / Linux / Windows (MSYS2)
 #   macOS:   brew install sdl2
 #   Linux:   sudo apt install libsdl2-dev
-#   Windows: MSYS2: pacman -S mingw-w64-x86_64-SDL2 make gcc
+#   Windows: MSYS2 (MINGW64-Shell): pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2 mingw-w64-x86_64-python
+#            (Python 3.8+ fuer den Netzdienst DRAHT; ohne Python laeuft der Emulator, nur Laufwerk 3 und NET fehlen)
 CC      ?= cc
 CXX     ?= c++
 CFLAGS  ?= -O2 -Wall -Wno-misleading-indentation
@@ -14,6 +15,12 @@ SIDKERN  = $(wildcard tools/sidkern/*.c)
 UNAME_S  ?= $(shell uname -s)
 UNAME_M  ?= $(shell uname -m)
 CXXSYS   =
+# Windows (MSYS2/MinGW/Cygwin): der Compiler haengt .exe an; die Ziele muessen so heissen, sonst baut make jedes Mal neu
+# und der Netzdienst findet bildwandler.exe, sidkern.exe, sidton.exe nicht.
+EXE      =
+ifneq (,$(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)))
+EXE      = .exe
+endif
 ifeq ($(UNAME_S),Darwin)
 MACSDK  ?= $(firstword $(shell xcrun --show-sdk-path 2>/dev/null) /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk)
 ifneq ($(wildcard $(MACSDK)/usr/include/c++/v1/cmath),)
@@ -22,7 +29,12 @@ endif
 endif
 SIDTON   = tools/sidton/sidton.cpp $(addprefix tools/sidton/resid/,sid.cc voice.cc wave.cc envelope.cc filter.cc dac.cc extfilt.cc pot.cc version.cc)
 
-all: meridian dienst/bin/mpg123 dienst/bildwandler dienst/sidkern dienst/sidton
+all: meridian$(EXE) dienst/bin/mpg123$(EXE) dienst/bildwandler$(EXE) dienst/sidkern$(EXE) dienst/sidton$(EXE)
+
+# Kurzname auch unter Windows: "make meridian" baut meridian.exe
+ifneq ($(EXE),)
+meridian: meridian$(EXE)
+endif
 
 # Die gebauten Programme gelten nur fuer die Plattform, auf der sie entstanden sind (macOS, Linux, ...).
 # Liegt der Ordner auf einem geteilten Laufwerk und wird auf einem zweiten System weitergebaut, wuerde make die
@@ -32,31 +44,31 @@ all: meridian dienst/bin/mpg123 dienst/bildwandler dienst/sidkern dienst/sidton
 	@echo "$(UNAME_S)-$(UNAME_M)" | cmp -s - $@ || echo "$(UNAME_S)-$(UNAME_M)" > $@
 FORCE:
 
-meridian: .plattform $(SRC) src/main.c src/meridian.h src/cpu65816.h src/orgel.h src/dienst.h src/version.h
+meridian$(EXE): .plattform $(SRC) src/main.c src/meridian.h src/cpu65816.h src/orgel.h src/dienst.h src/version.h
 	$(CC) $(CFLAGS) $$($(SDLCFG) --cflags) -o $@ $(SRC) src/main.c $$($(SDLCFG) --libs)
 
 headless: .plattform $(SRC) src/headless.c           # Testlauf ohne SDL
 	$(CC) $(CFLAGS) -Isrc -o meridian-headless $(SRC) src/headless.c
 
 # Radio-Dekoder: winziger MP3-Dekoder, der sich wie "mpg123" aufrufen laesst (siehe tools/mpg123mini.c)
-dienst/bin/mpg123: .plattform tools/mpg123mini.c tools/minimp3.h
+dienst/bin/mpg123$(EXE): .plattform tools/mpg123mini.c tools/minimp3.h
 	mkdir -p dienst/bin
 	$(CC) $(CFLAGS) -o $@ tools/mpg123mini.c -lm
 
 # Bildwandler (JPG/PNG/GIF fuer PICTURES, PAINT, WRITE und den Druck): der Netzdienst findet ihn neben bild_dienst.py.
 # Quelle und stb_image von Sean Barrett (Public Domain/MIT) liegen in tools/bildwandler/.
-dienst/bildwandler: .plattform tools/bildwandler/bildwandler.c tools/bildwandler/stb/stb_image.h tools/bildwandler/stb/stb_image_write.h
+dienst/bildwandler$(EXE): .plattform tools/bildwandler/bildwandler.c tools/bildwandler/stb/stb_image.h tools/bildwandler/stb/stb_image_write.h
 	$(CC) -O2 -Wno-unused-function -o $@ tools/bildwandler/bildwandler.c -lm
 
 # SID JAM: sidkern laesst die Abspielroutine eines SIDs auf einem 6510 laufen und schreibt den
 # Registerstrom (SJE) heraus, sidton macht daraus mit reSID den Klang "Original". Der Netzdienst
 # findet beide neben sidjam_dienst.py. Quellen in tools/sidkern/ und tools/sidton/ (GPL-3.0-or-later
 # bzw. reSID von Dag Lem, GPL-2.0-or-later); beide brauchen nur einen Compiler, keine Bibliothek.
-dienst/sidkern: .plattform $(SIDKERN) tools/sidkern/kern.h tools/sidkern/siddatei.h
+dienst/sidkern$(EXE): .plattform $(SIDKERN) tools/sidkern/kern.h tools/sidkern/siddatei.h
 	$(CC) $(CFLAGS) -o $@ $(SIDKERN)
 
-dienst/sidton: .plattform $(SIDTON)
+dienst/sidton$(EXE): .plattform $(SIDTON)
 	$(CXX) -O2 $(CXXSYS) -std=c++11 -w -Itools/sidton/resid -DVERSION='"1.0-sidjam"' -o $@ $(SIDTON)
 
 clean:
-	rm -f meridian meridian-headless dienst/bin/mpg123 dienst/bildwandler dienst/sidkern dienst/sidton .plattform
+	rm -f meridian meridian.exe meridian-headless meridian-headless.exe dienst/bin/mpg123 dienst/bin/mpg123.exe dienst/bildwandler dienst/bildwandler.exe dienst/sidkern dienst/sidkern.exe dienst/sidton dienst/sidton.exe .plattform

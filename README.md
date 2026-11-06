@@ -1,4 +1,4 @@
-# MERIDIAN 816 – Emulator (Stufe 1 / Stage 1, 0.8.4)
+# MERIDIAN 816 – Emulator (Stufe 1 / Stage 1, 0.8.4b)
 
 **[Deutsch](#deutsch) · [English](#english)**
 
@@ -15,6 +15,18 @@ Die ROMs in `roms/` sind aus `rom/*.hex` des Core-Repos umgewandelt (Stand 30.10
 
 ## Bauen und starten
 
+**Windows (MSYS2):** MSYS2 installieren, die Shell „MSYS2 MINGW64“ öffnen und dort
+
+    pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2 mingw-w64-x86_64-python
+    make
+    ./meridian.exe
+
+ausführen. Python 3.8+ (MSYS2-Paket oder python.org) wird nur für den Netzdienst DRAHT gebraucht (Laufwerk 3, `NET`, HORIZONT-Apps); ohne Python läuft der Emulator, im Fenstertitel steht dann „D3: AUS (kein Python 3)“.
+Beim Start per Doppelklick im Explorer muss `SDL2.dll` (aus `C:\msys64\mingw64\bin`) neben `meridian.exe` liegen. Bei Problemen mit dem Dienst: Protokoll `%TEMP%\meridian-draht.log`, `meridian.exe --dienst-test` und `MERIDIAN_PYTHON=C:\pfad\python.exe`; bei „keine Netzverbindung“ in WEATHER/RADIO: `python dienst/netztest.py` (zeigt, ob DNS, IPv6, Firewall oder Zertifikate hängen).
+Unter Windows laufen alle Apps des Netzdienstes wie am Mac (WEATHER, NEWS, ATLAS, RADIO, SID JAM, PICTURES/PAINT, Drucken); `make` baut dafür `bildwandler.exe`, `sidkern.exe`, `sidton.exe` und `mpg123.exe` nach `dienst/`.
+
+**macOS / Linux:**
+
     macOS:  brew install sdl2         Linux: sudo apt install libsdl2-dev
     make
     ./meridian                        # Optionen: --pal  --no-sdram  --scale N  --fullscreen  --roms DIR  --module DATEI  --version
@@ -28,7 +40,8 @@ Schlägt etwas fehl: `make clean && make`.
 
 Ohne SDL gibt es einen Testlauf: `make headless && ./meridian-headless roms 300 bild.ppm`
 
-Hotkeys (Cmd-Taste auf dem Mac, Windows-Taste am PC): **Cmd+C** Mauszeiger des Betriebssystems zeigen/verbergen (er ist über dem Fenster verborgen, weil der MERIDIAN seinen eigenen zeichnet; `--show-cursor` lässt ihn sichtbar), **Cmd+M** Ton aus/an, **Cmd+R** Reset, **Cmd+P** PAL/NTSC,
+Hotkeys. Die Host-Taste ist auf **macOS Cmd**, auf **Linux die Windows-Taste (Super)** und unter **Windows Strg+Umschalt** (die Windows-Taste ist dort fast überall vom System belegt: Win+D, E, R, S, M, P, Q, F, C, 1, 2 …). Alle Hotkeys unten als „Cmd+…“ geschrieben gelten mit der Host-Taste, also z. B. Cmd+Q am Mac, **Win+Q** unter Linux und **Strg+Umschalt+Q** unter Windows. Andere Tasten mit Strg+Umschalt gehen unverändert an den MERIDIAN. Ändern mit `--hotkey` oder `MERIDIAN_HOTKEY`: `gui`, `ctrl+shift`, `ctrl`, `alt`, `shift+alt` … (Modifier gedrückt halten) oder eine Haltetaste `f12`, `scrolllock`, `pause`, `printscreen`, `menu` (halten, dann die Taste; sie geht nicht an den MERIDIAN). Der Kaltstart hat zusätzlich die eigene Taste **Cmd+K** (nötig, wenn Umschalt zur Host-Taste gehört). Beim Start steht die Belegung auf stderr.
+**Cmd+C** Mauszeiger des Betriebssystems zeigen/verbergen (er ist über dem Fenster verborgen, weil der MERIDIAN seinen eigenen zeichnet; `--show-cursor` lässt ihn sichtbar), **Cmd+M** Ton aus/an, **Cmd+R** Reset, **Cmd+P** PAL/NTSC,
 **Cmd+F** Vollbild, **Cmd+S** Screenshot (`meridian-screenshot.bmp`), **Cmd+D** Ordner von Laufwerk 3 im Dateimanager zeigen (dort liegen auch die gedruckten PDFs), **Cmd+Q** Beenden.
 Die Tasten werden als PS/2-Scancodes (Satz 2) nach Tastenposition weitergereicht, das Kern-ROM
 macht daraus das deutsche Layout. Beide Alt/Option-Tasten wirken als AltGr (@, {, [ …).
@@ -84,9 +97,9 @@ genau zum alten ROM passen; beim mitgelieferten neuen ROM bleibt das ausgeschalt
 | PINSEL-Look: Glanz (SHINE), Leuchten (GLOW), Tusche (INK: Kontur und Schlagschatten) | fertig, nach `pinsel.sv` |
 | ORGEL (Ton): 4 Synthesestimmen (SID-Wellenformen, Sync, Ring, Hüllkurve), Filter, 8 Samplekanäle mit Crusher/Verzerrung, Echo, Stereo | fertig, rechnet im 1-MHz-Takt nach `orgel.sv`; Ausgabe 48 kHz über SDL |
 | BOTE: `.MER`-Programme laden (Chip-RAM und Zusatzspeicher, Autostart per NMI), Module (`.MOD`, schreibgeschützt ab `$40:0000`, überstehen Resets), Speicherstand `.sav` als Laufwerk 0 | fertig, getestet mit MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER |
-| DRAHT: Fenster Bank `$FD` als gemeinsame Datei, daran der echte Netzdienst 2.0 `dienst/draht.py` (Python 3): **Laufwerk 3 = Ordner**, `NET`-Befehle | fertig für macOS und Linux; Windows noch nicht (Bank `$FD` bleibt dort ein einfacher Speicher) |
+| DRAHT: Fenster Bank `$FD` als gemeinsame Datei, daran der echte Netzdienst 2.0 `dienst/draht.py` (Python 3): **Laufwerk 3 = Ordner**, `NET`-Befehle | fertig für macOS, Linux und Windows (Windows: Python 3.8+ nötig, siehe „Windows (MSYS2)“) |
 
-Offen: Windows-Start des Netzdienstes, `FETCH` (braucht das BOTE-Postfach, meldet im Simulationsmodus selbst „only on the MiSTer“).
+Offen: `FETCH` (braucht das BOTE-Postfach, meldet im Simulationsmodus selbst „only on the MiSTer“).
 
 ## Laufwerk 3 und Netz (DRAHT)
 
@@ -199,6 +212,18 @@ The ROMs in `roms/` are converted from `rom/*.hex` of the core repository (as of
 
 ## Build and run
 
+**Windows (MSYS2):** install MSYS2, open the "MSYS2 MINGW64" shell and run
+
+    pacman -S make mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2 mingw-w64-x86_64-python
+    make
+    ./meridian.exe
+
+Python 3.8+ (the MSYS2 package or python.org) is only needed for the DRAHT network service (drive 3, `NET`, HORIZONT apps); without it the emulator still runs and the window title shows "D3: AUS (kein Python 3)".
+When started by double-click from Explorer, `SDL2.dll` (from `C:\msys64\mingw64\bin`) must sit next to `meridian.exe`. If the service has problems: log `%TEMP%\meridian-draht.log`, `meridian.exe --dienst-test` and `MERIDIAN_PYTHON=C:\path\python.exe`; for "no connection" in WEATHER/RADIO: `python dienst/netztest.py` (shows whether DNS, IPv6, firewall or certificates are the problem).
+On Windows all apps of the network service work as on the Mac (WEATHER, NEWS, ATLAS, RADIO, SID JAM, PICTURES/PAINT, printing); `make` builds `bildwandler.exe`, `sidkern.exe`, `sidton.exe` and `mpg123.exe` into `dienst/` for them.
+
+**macOS / Linux:**
+
     macOS:  brew install sdl2         Linux: sudo apt install libsdl2-dev
     make
     ./meridian                        # options: --pal  --no-sdram  --scale N  --fullscreen  --roms DIR  --module FILE  --version
@@ -212,7 +237,8 @@ If something fails: `make clean && make`.
 
 Without SDL there is a test run: `make headless && ./meridian-headless roms 300 picture.ppm`
 
-Hotkeys (Cmd key on the Mac, Windows key on a PC): **Cmd+C** show/hide the operating system's mouse pointer (it is hidden over the window because the MERIDIAN draws its own; `--show-cursor` keeps it visible), **Cmd+M** sound off/on, **Cmd+R** reset, **Cmd+P** PAL/NTSC,
+Hotkeys. The host key is **Cmd on macOS**, the **Windows key (Super) on Linux** and **Ctrl+Shift on Windows** (the Windows key is taken by the system almost everywhere there: Win+D, E, R, S, M, P, Q, F, C, 1, 2 …). Every hotkey written as "Cmd+…" below works with the host key, e.g. Cmd+Q on the Mac, **Win+Q** on Linux and **Ctrl+Shift+Q** on Windows. Other keys with Ctrl+Shift still go to the MERIDIAN unchanged. Change it with `--hotkey` or `MERIDIAN_HOTKEY`: `gui`, `ctrl+shift`, `ctrl`, `alt`, `shift+alt` … (hold the modifiers) or a hold key `f12`, `scrolllock`, `pause`, `printscreen`, `menu` (hold it, then press the key; it is not passed to the MERIDIAN). Cold start also has its own key, **Cmd+K** (needed when Shift is part of the host key). The mapping is printed to stderr at start.
+**Cmd+C** show/hide the operating system's mouse pointer (it is hidden over the window because the MERIDIAN draws its own; `--show-cursor` keeps it visible), **Cmd+M** sound off/on, **Cmd+R** reset, **Cmd+P** PAL/NTSC,
 **Cmd+F** full screen, **Cmd+S** screenshot (`meridian-screenshot.bmp`), **Cmd+D** show the folder of drive 3 in the file manager (printed PDFs end up there, too), **Cmd+Q** quit.
 Keys are passed on as PS/2 scancodes (set 2) by key position; the core ROM turns them into the German layout. Both Alt/Option keys work as AltGr (@, {, [ …).
 **Linux:** the emulator turns SDL's text input off. Otherwise SDL asks the input method (IBus, Fcitx) about every key, and with the German layout it takes
@@ -267,9 +293,9 @@ exactly match the old ROM; with the bundled new ROM it stays off; `--no-module-f
 | PINSEL look: shine (SHINE), glow (GLOW), ink (INK: outline and drop shadow) | done, after `pinsel.sv` |
 | ORGEL (sound): 4 synthesis voices (SID waveforms, sync, ring, envelope), filter, 8 sample channels with crusher/distortion, echo, stereo | done, runs at the 1 MHz clock after `orgel.sv`; output 48 kHz via SDL |
 | BOTE: load `.MER` programs (chip RAM and expansion memory, autostart via NMI), modules (`.MOD`, write-protected from `$40:0000`, survive resets), saved state `.sav` as drive 0 | done, tested with MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER |
-| DRAHT: window bank `$FD` as a shared file, with the real network service 2.0 `dienst/draht.py` (Python 3) attached: **drive 3 = folder**, `NET` commands | done for macOS and Linux; not yet for Windows (bank `$FD` stays plain memory there) |
+| DRAHT: window bank `$FD` as a shared file, with the real network service 2.0 `dienst/draht.py` (Python 3) attached: **drive 3 = folder**, `NET` commands | done for macOS, Linux and Windows (Windows: needs Python 3.8+, see "Windows (MSYS2)") |
 
-Open: starting the network service on Windows, `FETCH` (needs the BOTE mailbox; in simulation mode it reports "only on the MiSTer" itself).
+Open: `FETCH` (needs the BOTE mailbox; in simulation mode it reports "only on the MiSTer" itself).
 
 ## Drive 3 and network (DRAHT)
 

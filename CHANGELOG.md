@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.8.4b
+- **Hotkeys per operating system:** the host hotkeys (quit, full screen, reset, screenshot ...) were bound to the GUI key only. On Windows nearly every Win+letter is reserved by the system
+  (Win+D, E, R, S, M, P, Q, F, C, 1, 2 ...), so they never reached the emulator. Now: **macOS Cmd+letter, Linux Win (Super)+letter, Windows Ctrl+Shift+letter**. The GUI key still works
+  wherever the system passes it on. Configurable with `--hotkey` / `MERIDIAN_HOTKEY`: modifiers (`gui`, `ctrl`, `shift`, `alt`, combinations) or a hold key (`f12`, `scrolllock`, `pause`,
+  `printscreen`, `menu`). With Ctrl+Shift only the hotkey letters are taken, all other Ctrl+Shift combinations still reach the MERIDIAN. New **host key + K** = cold start (Shift cannot be
+  told apart when it is part of the host key; Cmd/Win+Shift+R still works). The mapping is printed to stderr at start.
+  Tested with real key events under Xvfb/xdotool (Linux build): Win+letter, Ctrl alone and Shift alone pass through, `ctrl+shift`, `alt`, `f12` hold key, invalid value falls back.
+- **Fix (Windows): the DRAHT network service did not run at all.** `src/dienst.c` contained only stubs for Windows (`dienst_start()` returned "not built in yet"), so bank `$FD` stayed
+  plain memory, drive 3 reported error 4 after 10 s and `NET`, WEATHER, NEWS, RADIO, ATLAS, SID JAM, PICTURES/PAINT and printing were all dead. Now implemented with the Win32 API:
+  - the window file is a real shared file: `CreateFile` + `CreateFileMapping` + `MapViewOfFile` in the emulator, `mmap.mmap(fd)` in `draht.py` (the same mechanism as `mmap` on macOS/Linux);
+  - Python is started with `CreateProcess` (no console window, output to `%TEMP%\meridian-draht.log`); `python`, `python3` and `py -3` are tried (also `MERIDIAN_PYTHON`),
+    the Microsoft Store placeholders are skipped; the watchdog script is written to `%TEMP%` instead of being passed on the command line;
+  - the watchdog thread waits for the emulator process with `WaitForSingleObject` (on Windows `os.kill(pid, 0)` would *terminate* the emulator, so the Unix watchdog cannot be used);
+  - small Windows shims inside the wrapper, `draht.py` and the other service files stay unchanged: `os.statvfs` (free space for `DIR` and the RADIO recording), `os.ftruncate` to the size the
+    file already has (the window file is mapped), `bildwandler.exe`/`sidkern.exe`/`sidton.exe` found via `MERIDIAN_BILDWANDLER`/`SIDJAM_SIDKERN`/`SIDJAM_SIDTON`, UTF-8 for text files and output (`PYTHONUTF8`);
+  - the shared helpers (`dienst_mkdirs`, index/example copying, the round-trip test) are now common code for both platforms (`\\` is accepted as a path separator on Windows);
+  - `Makefile`: targets get `.exe` on MSYS2/MinGW/Cygwin (otherwise `make` rebuilt everything each time and the service did not find the helper programs); `make meridian` still works.
+- Tested: Linux (regression: `--dienst-test`, full build without warnings) and Windows cross-built with MinGW-w64 (no warnings) and run under Wine with a Windows CPython 3.12 and the unchanged
+  `draht.py`: `meridian.exe --dienst-test` = "Selbsttest OK"; free space (`DIR`), writing a file to drive 3, the browser page on port 8816 all work; after a hard exit of the emulator the Python
+  process ends by itself. **Not tested on a real Windows machine** (Wine is not Windows; Windows Firewall, antivirus and the Store's `python.exe` placeholder behave differently there).
+- Known limits on Windows: the service's cache folders `/tmp/meridian_bild` and `/tmp/sidjam` resolve to `C:\tmp\...` (created on demand); HTTPS uses the Windows certificate store through Python.
+- **Fix (Windows): WEATHER failed with CERTIFICATE_VERIFY_FAILED.** Windows loads root certificates on demand, so Python sometimes sees only a few of them (17 in one case) and `api.open-meteo.com`
+  could not be verified. The service now sets `SSL_CERT_FILE` to `certifi` or the new bundled `dienst/cacert.pem` (Mozilla CA bundle from certifi, license in `dienst/cacert.LICENSE.txt`) when none is set.
+- New `dienst/netztest.py`: runs the same network calls as WEATHER and RADIO step by step (DNS, IPv4/IPv6, TCP, HTTPS certificates, stream) and says where it hangs.
+
 ## 0.8.4
 - **Fix (Linux): umlauts (ä, ö, ü, ß) could not be typed with the German keyboard layout, although they worked with the US layout.** The emulator translates keys by
   physical position only, so both layouts produce the same scancodes. The cause was SDL's text input, which SDL2 leaves on by default: with an input method running
