@@ -24,6 +24,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 #include "kern.h"
 #include "siddatei.h"
 
@@ -450,6 +454,12 @@ int main(int argc, char **argv)
 
 #ifdef SIGPIPE                              /* Windows (mingw) kennt SIGPIPE nicht */
     signal(SIGPIPE, SIG_IGN);
+#endif
+#ifdef _WIN32
+    /* Der SJE-Strom ist binaer. Im Textmodus macht die C-Laufzeit von Windows
+       aus jedem Byte $0A ein $0D $0A, und der Strom ist hinter der ersten
+       solchen Stelle kaputt (ORGEL-Klang und reSID in SID JAM). */
+    _setmode(_fileno(stdout), _O_BINARY);
 #endif
     aus = stdout;
     if (ausdatei && !info) {

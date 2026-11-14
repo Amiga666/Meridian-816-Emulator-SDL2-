@@ -29,6 +29,10 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 #ifndef M_PI                                /* Windows (mingw) hat es nicht in -std=c++11 */
 #define M_PI 3.14159265358979323846
@@ -77,6 +81,14 @@ static int json_anzahl_sids(const std::string &j)
 
 int main(int argc, char **argv)
 {
+#ifdef _WIN32
+    // SJE-Strom rein und Samples raus sind binaer. Im Textmodus wird unter
+    // Windows aus jedem Byte $0A ein $0D $0A (raus) und $1A gilt als Dateiende
+    // (rein): die Bytepaare der Fein-Ausgabe verrutschen, der leise Rest
+    // landet auf dem lauten Kanal - SID JAM klingt verzerrt.
+    _setmode(_fileno(stdin), _O_BINARY);
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
     double rate = 22050;
     bool s16 = false, fein = false;
     // Vorgabe: reSID "fast" mit 4-facher Rate, danach ein eigenes FIR-Filter
