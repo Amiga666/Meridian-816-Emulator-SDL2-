@@ -433,7 +433,10 @@ static void layer(Machine *m, int L, int y, uint8_t *px, uint8_t *fromB) {
         uint32_t base = data + y * 160; int bank = opt >> 4;
         for (int x = 0; x < 320; x++) {
             uint8_t byte = ram[(base + (x >> 1)) & CHIPMASK], v = (x & 1) ? (byte & 15) : (byte >> 4);
-            line[x * 2] = line[x * 2 + 1] = bank * 16 + v;
+            /* Ebene B: Pixelwert 0 ist durchsichtig, auch mit Palettenbank (wie Kacheln und Sprites).
+               Sonst deckt Index bank*16 den Hintergrund (Farbe 0, z. B. GLANZ-Verlauf) ab. */
+            uint8_t p = (L == 1 && v == 0) ? 0 : (uint8_t)(bank * 16 + v);
+            line[x * 2] = line[x * 2 + 1] = p;
         }
     } break;
     case 4: {
