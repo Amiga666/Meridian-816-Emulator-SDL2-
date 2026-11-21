@@ -1,4 +1,4 @@
-# MERIDIAN 816 – Emulator (Stufe 1 / Stage 1, 0.8.4b)
+# MERIDIAN 816 – Emulator (Stufe 1 / Stage 1, 0.8.5)
 
 **[Deutsch](#deutsch) · [English](#english)**
 
@@ -88,7 +88,7 @@ genau zum alten ROM passen; beim mitgelieferten neuen ROM bleibt das ausgeschalt
 |---|---|
 | 65C816 (emulierend und nativ, BCD, Block-Moves, WAI/STP, IRQ/NMI) | fertig, bootet Kern und BASIC |
 | Speicherkarte: Chip-RAM, SPIEGEL, Zusatzspeicher 15,7 MB, DRAHT-Bank, ROMs, Modul-ROM | fertig |
-| PINSEL: 2 Ebenen, Text 40/80, Kacheln, Bitmap 16/256, Scrolling, Palette, Raster-/Bild-IRQ | fertig; eine Zeile wird im Voraus gezeichnet wie in der Hardware, Palettenwechsel wirken punktgenau |
+| PINSEL: 2 Ebenen, Text 40/80, Kacheln, Bitmap 16/256, Scrolling, Palette, Raster-/Bild-IRQ | fertig; eine Zeile wird im Voraus gezeichnet wie in der Hardware, Palettenwechsel wirken punktgenau; auf Ebene B ist Pixelwert 0 durchsichtig, auch bei Bitmap 16 mit Palettenbank |
 | PFORTE: Tastatur, Timer A/B, µs-Uhr, Kalenderuhr, Maus | fertig; Joysticks sind verdrahtet, aber noch keine Eingabequelle |
 | KRAN (Blitter) | fertig, aber ohne Zeitverbrauch (Auftrag läuft sofort); Bit 2 „rückwärts“ als Zeilenreihenfolge gedeutet – gegen den Verilog-Code prüfen |
 | TRUHE (Laufwerke 1 und 2, `.DSK`/`.IMG`/`.HDF`, FAT16, lesen und schreiben) | fertig, getestet mit DIR, LOAD, SAVE; schreibgeschützte Dateien werden als „nur lesen“ eingehängt |
@@ -96,7 +96,7 @@ genau zum alten ROM passen; beim mitgelieferten neuen ROM bleibt das ausgeschalt
 | LOTSE (Copper: WARTE, SETZE, SPRUNG, SIGNAL, FARBE) | fertig; Befehle laufen ohne Zeitverbrauch, Wartepunkte auf ca. 4 Punkte genau |
 | PINSEL-Look: Glanz (SHINE), Leuchten (GLOW), Tusche (INK: Kontur und Schlagschatten) | fertig, nach `pinsel.sv` |
 | ORGEL (Ton): 4 Synthesestimmen (SID-Wellenformen, Sync, Ring, Hüllkurve), Filter, 8 Samplekanäle mit Crusher/Verzerrung, Echo, Stereo | fertig, rechnet im 1-MHz-Takt nach `orgel.sv`; Ausgabe 48 kHz über SDL |
-| BOTE: `.MER`-Programme laden (Chip-RAM und Zusatzspeicher, Autostart per NMI), Module (`.MOD`, schreibgeschützt ab `$40:0000`, überstehen Resets), Speicherstand `.sav` als Laufwerk 0 | fertig, getestet mit MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER |
+| BOTE: `.MER`-Programme laden (Chip-RAM und Zusatzspeicher, Autostart per NMI), Module (`.MOD`, schreibgeschützt ab `$40:0000`, überstehen Resets), Speicherstand `.sav` als Laufwerk 0 | fertig, getestet mit MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER, STARKSTROM |
 | DRAHT: Fenster Bank `$FD` als gemeinsame Datei, daran der echte Netzdienst 2.0 `dienst/draht.py` (Python 3): **Laufwerk 3 = Ordner**, `NET`-Befehle | fertig für macOS, Linux und Windows (Windows: Python 3.8+ nötig, siehe „Windows (MSYS2)“) |
 
 Offen: `FETCH` (braucht das BOTE-Postfach, meldet im Simulationsmodus selbst „only on the MiSTer“).
@@ -284,7 +284,7 @@ exactly match the old ROM; with the bundled new ROM it stays off; `--no-module-f
 |---|---|
 | 65C816 (emulation and native mode, BCD, block moves, WAI/STP, IRQ/NMI) | done, boots the kernel and BASIC |
 | Memory map: chip RAM, SPIEGEL, expansion memory 15.7 MB, DRAHT bank, ROMs, module ROM | done |
-| PINSEL: 2 layers, text 40/80, tiles, bitmap 16/256, scrolling, palette, raster/frame IRQ | done; a line is drawn ahead of time like in the hardware, palette changes take effect to the pixel |
+| PINSEL: 2 layers, text 40/80, tiles, bitmap 16/256, scrolling, palette, raster/frame IRQ | done; a line is drawn ahead of time like in the hardware, palette changes take effect to the pixel; on layer B pixel value 0 is transparent, also for bitmap 16 with a palette bank |
 | PFORTE: keyboard, timers A/B, µs clock, calendar clock, mouse | done; joysticks are wired up but there is no input source yet |
 | KRAN (blitter) | done, but takes no time (the job runs at once); bit 2 "backwards" interpreted as line order – to be checked against the Verilog code |
 | TRUHE (drives 1 and 2, `.DSK`/`.IMG`/`.HDF`, FAT16, read and write) | done, tested with DIR, LOAD, SAVE; write-protected files are attached as "read only" |
@@ -292,7 +292,7 @@ exactly match the old ROM; with the bundled new ROM it stays off; `--no-module-f
 | LOTSE (copper: WAIT, SET, JUMP, SIGNAL, COLOUR) | done; commands take no time, wait points accurate to about 4 dots |
 | PINSEL look: shine (SHINE), glow (GLOW), ink (INK: outline and drop shadow) | done, after `pinsel.sv` |
 | ORGEL (sound): 4 synthesis voices (SID waveforms, sync, ring, envelope), filter, 8 sample channels with crusher/distortion, echo, stereo | done, runs at the 1 MHz clock after `orgel.sv`; output 48 kHz via SDL |
-| BOTE: load `.MER` programs (chip RAM and expansion memory, autostart via NMI), modules (`.MOD`, write-protected from `$40:0000`, survive resets), saved state `.sav` as drive 0 | done, tested with MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER |
+| BOTE: load `.MER` programs (chip RAM and expansion memory, autostart via NMI), modules (`.MOD`, write-protected from `$40:0000`, survive resets), saved state `.sav` as drive 0 | done, tested with MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER, STARKSTROM |
 | DRAHT: window bank `$FD` as a shared file, with the real network service 2.0 `dienst/draht.py` (Python 3) attached: **drive 3 = folder**, `NET` commands | done for macOS, Linux and Windows (Windows: needs Python 3.8+, see "Windows (MSYS2)") |
 
 Open: `FETCH` (needs the BOTE mailbox; in simulation mode it reports "only on the MiSTer" itself).

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.5
+- **Fix: background gradient (GLANZ/SHINE on colour 0) was hidden behind a bitmap-16 layer B with a palette bank.** In the STARKSTROM demo (wireframe, bobs and
+  sunset parts) layer A is off and layer B is a 16-colour bitmap with palette bank 3 (`B_OPT = $30`). The emulator computed the palette index as `bank * 16 + pixel value` and
+  only then tested for transparency, so every empty pixel (value 0) became index 48, an opaque black entry, and covered the GLANZ gradient on colour 0 behind it. The screen was plain black
+  where the MiSTer shows a navy - purple - blue gradient. On layer B a pixel value of 0 is now transparent for bitmap 16 as well, like tiles and sprites
+  (`layer()`, case 3 in `src/meridian.c`). Layer A is unchanged: it has no transparency and still shows `bank * 16 + value`.
+  GLANZ itself (registers `$C040-$C04E`, 16 channels, per-line palette write) was already correct.
+- Tested: STARKSTROM.MOD run headless for 14000 frames and checked frame by frame: title, wireframes, bobs, scroller and sunset parts all show the gradients; the title part is unchanged.
+  The SDL build (`make meridian`) was not built in the test environment (no SDL2 there); the change touches only the picture calculation in `src/meridian.c`, not the window code.
+- Assumption not checked against the FPGA source: transparency of bitmap 16 on layer B is decided by the pixel value (0), not by the full palette index. The core documentation only says
+  "colour 0 is transparent on layer B"; the MiSTer screenshot of the demo shows the background, which fits the pixel-value rule. To be confirmed in the PINSEL module under `rtl/`.
+
 ## 0.8.4b
 - **Hotkeys per operating system:** the host hotkeys (quit, full screen, reset, screenshot ...) were bound to the GUI key only. On Windows nearly every Win+letter is reserved by the system
   (Win+D, E, R, S, M, P, Q, F, C, 1, 2 ...), so they never reached the emulator. Now: **macOS Cmd+letter, Linux Win (Super)+letter, Windows Ctrl+Shift+letter**. The GUI key still works
