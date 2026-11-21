@@ -43,6 +43,9 @@ ab $2000, Auftraege fuer die ORGEL im Ring ab $4000, Samples wie beim Radio
 (Tabelle: sidjam/SCHNITTSTELLEN.md).
 Nachrichten (App NEWS, nachrichten_dienst.py): Art 15 mit einem Befehl als
 Text (Tagesschau, heise online, Retro-Modern-Forum).
+KATALOG (App KATALOG, katalog_dienst.py): Art 17 mit einem Befehl als Text -
+die Software aus dem KATALOG auf retro-modern.net, LADE legt sie auf
+Laufwerk 3 (ZIP-Pakete ausgepackt).
 Wetter (App WEATHER, wetter_dienst.py): Art 14 mit einem Befehl als Text;
 die Kurzform fuer die Menueleiste von HORIZONT schreibt der Dienst ab $22.
 Bilder (Apps PICTURES und PAINT, bild_dienst.py): Art 22 mit einem Befehl als
@@ -57,6 +60,11 @@ an den Netzwerkdrucker (IPP; PRINTER.TXT auf Laufwerk 3 oder Bonjour), PDF
 QUELLE NAME.PDF legt das PDF auf Laufwerk 3 ab; STAND meldet den Faden.
 TAKTSTOCK Netz-Jam (takjam_dienst.py): Art 21 mit einem Befehl als Text; Stand
 ab $0300, Aenderungen in zwei Ringen ab $0400 und $0800 (taktstock/netz/NETZJAM.md).
+LEITUNG (leitung_dienst.py): Art 25 mit einem Befehl als Text (AUF host:port,
+ZU, STAND) - eine TCP-Verbindung, deren Bytes unveraendert durchgehen; Stand
+ab $0300, Eingang $0400 (2 KB), Ausgang $0C00 (1 KB). Teilt sich den Bereich
+mit Netz-Jam und dem Spektrum des Radios: wer zuletzt kommt, haelt die
+anderen an.
 RADIO und SID JAM schreiben nur durch ein Tor ins Fenster (Klasse Tor): Es
 oeffnet sich mit ihrer Anfrage (Art 12 bzw. 20) und schliesst sich bei
 Stopp, Laufwerk 3, Netz-Jam, anderem Core - und wenn das Lebenszeichen der
@@ -97,6 +105,10 @@ try:
 except ImportError:
     nachrichten_dienst = None
 try:
+    import katalog_dienst               # KATALOG (App KATALOG)
+except ImportError:
+    katalog_dienst = None
+try:
     import wetter_dienst                # Wetter (App WEATHER, Menueleiste)
 except ImportError:
     wetter_dienst = None
@@ -117,6 +129,10 @@ try:
     import takjam_dienst                # TAKTSTOCK Netz-Jam (taktstock/netz/; auf dem MiSTer daneben)
 except ImportError:
     takjam_dienst = None
+try:
+    import leitung_dienst               # rohe TCP-Leitung (HANSE&HIEBE und andere Online-Spiele)
+except ImportError:
+    leitung_dienst = None
 
 FENSTER = 0x3E100000
 POSTFACH = 0x3E000000           # BOTE: Programme und Daten in den Speicher
@@ -274,10 +290,13 @@ class Dienst:
         self.radio = None               # Internetradio (radio_dienst), beim ersten Sender
         self.jam = None                 # SID JAM (sidjam_dienst), beim ersten Befehl
         self.takjam = None              # TAKTSTOCK Netz-Jam (takjam_dienst), beim ersten Befehl
+        self.leitung = None             # rohe TCP-Leitung (leitung_dienst), beim ersten Befehl
         self.bild = None                # Bilder fuer PICTURES und PAINT (bild_dienst), beim ersten Befehl
         self.druck = None               # Drucken (druck_dienst), beim ersten Befehl
         self.wetter = wetter_dienst.Wetter(fenster, zu_meridian, ordner) if wetter_dienst else None
         self.nachrichten = nachrichten_dienst.Nachrichten(zu_meridian) if nachrichten_dienst else None
+        self.katalog = katalog_dienst.Katalog(zu_meridian, lambda: self.dateien,
+                                              lambda: self.ordner) if katalog_dienst else None
         self.tor_radio = Tor(fenster)
         self.tor_jam = Tor(fenster)
         self.leben = {}                 # Adresse -> (Wert, seit wann, schon gezaehlt)
@@ -341,6 +360,8 @@ class Dienst:
             self.jam_halten(still=True)
             if self.takjam:
                 self.takjam.stop(still=True)
+            if self.leitung:
+                self.leitung.stop(still=True)
             for kanal in self.kanaele[1:]:
                 kanal.schliessen()
                 kanal.zeilen.clear()
@@ -388,6 +409,8 @@ class Dienst:
             self.jam_halten()                       # dieselben Sample-Ringe
             if self.takjam:                         # Spektrum und Cover liegen in den Ringen des Netz-Jams
                 self.takjam.stop()
+            if self.leitung:                        # ... und der Leitung
+                self.leitung.stop(still=True)
             if art != 13:
                 self.tor_oeffnen(self.tor_radio, LEBEN_RADIO)
             if not self.radio:
@@ -416,6 +439,14 @@ class Dienst:
             except Exception as e:
                 status, antwort = 2, zu_meridian("ERROR: " + str(e))
             self.antworten(nr, status, antwort)
+        elif art == 17:                             # KATALOG (App KATALOG)
+            if not self.katalog:
+                return self.antworten(nr, -6, b"NO KATALOG")
+            try:
+                status, antwort = self.katalog.anfrage(text)
+            except Exception as e:
+                status, antwort = 2, zu_meridian("ERROR: " + str(e))
+            self.antworten(nr, status, antwort)
         elif art == 22:                             # Bilder (Apps PICTURES und PAINT)
             if not bild_dienst:
                 return self.antworten(nr, -6, b"NO PICTURE SERVICE")
@@ -440,6 +471,8 @@ class Dienst:
             if not sidjam_dienst:
                 return self.antworten(nr, -6, b"NO SID JAM")
             self.radio_halten()                     # dieselben Sample-Ringe
+            if self.leitung:                        # ... wie die Musik der Leitung
+                self.leitung.klang_halten()
             stopp = text.split(None, 1)[:1] == [b"STOPP"]
             if not stopp:
                 self.tor_oeffnen(self.tor_jam, LEBEN_JAM)
@@ -457,6 +490,8 @@ class Dienst:
                 return self.antworten(nr, -6, b"NO NETZJAM")
             if not self.takjam:
                 self.takjam = takjam_dienst.NetzJam(m, zu_meridian, self.dateien)
+            if self.leitung:                        # die Leitung nutzt $0300-$0FFF auch
+                self.leitung.stop(still=True)
             self.radio_halten()                     # Radio und SID JAM nutzen $0300-$0FFF mit
             self.jam_halten()
             try:
@@ -464,10 +499,34 @@ class Dienst:
             except Exception as e:
                 status, antwort = -1, zu_meridian("ERROR: " + str(e))
             self.antworten(nr, status, antwort)
+        elif art == 25:                             # LEITUNG: rohe TCP-Verbindung (Stand ab $0300)
+            if not leitung_dienst:
+                return self.antworten(nr, -6, b"NO LEITUNG")
+            if not self.leitung:
+                # Am MiSTer laeuft das Programm durch; im Emulator (Datei) haelt
+                # die Maschine zwischen zwei Werkzeugaufrufen an - 3 s waeren dort
+                # ein Fehlalarm.
+                frist = leitung_dienst.HERZ_FRIST if self.nur_meridian else 120.0
+                self.leitung = leitung_dienst.Leitung(m, zu_meridian, herz_frist=frist)
+            if text.split(None, 1)[:1] == [b"AUF"]:
+                if self.takjam:                     # $0300-$0FFF gehoert jetzt der Leitung
+                    self.takjam.stop(still=True)
+                if self.tor_radio.offen:            # Spektrum und Cover ab $0400
+                    self.radio_halten(still=True)
+            if text.split(None, 1)[:1] and text.split(None, 1)[0].upper() == b"KLANG":   # Musik ab $8000
+                self.radio_halten(still=True)       # (die Ringe gehoeren auch Radio und SID JAM;
+                self.jam_halten(still=True)         # gross/klein wie Leitung.befehl)
+            try:
+                status, antwort = self.leitung.befehl(text)
+            except Exception as e:
+                status, antwort = -1, zu_meridian("ERROR: " + str(e))
+            self.antworten(nr, status, antwort)
         elif 4 <= art <= 11:
             if art in (5, 6):                       # Lesen und Schreiben brauchen $1000-$FFFF:
                 self.radio_halten()                 # Radio und SID JAM schrieben sonst in die
                 self.jam_halten()                   # Dateidaten (Verzeichnis, Umbenennen usw. nicht)
+                if self.leitung:                    # ... und die Musik der Leitung (KLANG)
+                    self.leitung.klang_halten()
             try:
                 status, antwort = self.laufwerk(art, bytes(m[TEXT:TEXT + max(17, n)]))
             except Exception as e:

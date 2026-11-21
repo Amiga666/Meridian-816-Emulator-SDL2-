@@ -1071,7 +1071,10 @@ class Jam:
         f.text(T_JAHR, a.get("jahr", ""), 64)
         teile = []
         if a.get("lieder", 1) > 1:
-            teile.append("Song %d/%d" % (a["lied"], a["lieder"]))
+            # der Hinweis nur, wo die Tasten auch wirken (gemeinsam gibt der
+            # Server vor, was alle hoeren)
+            wink = "" if self.e.get("modus") == "GEMEINSAM" else " (+/-)"
+            teile.append("Song %d/%d%s" % (a["lied"], a["lieder"], wink))
         if a.get("modell_text"):
             teile.append(a["modell_text"])
         teile.append("reSID" if a.get("resid") else "MP3" if a.get("original") else "ORGEL")
@@ -1336,6 +1339,31 @@ class Jam:
             return self.b_wunsch(rest)
         self.allein_spielen(t["pfad"], t.get("lied", 1))
 
+    def b_lied(self, rest):
+        """Untertitel im laufenden Stueck: LIED +, LIED - oder LIED n.
+        Nur allein - gemeinsam gibt der Server vor, was alle hoeren."""
+        if self.e.get("modus") == "GEMEINSAM":
+            return -1, "ONLY WHEN SOLO"
+        a = self.aktuell or {}
+        if not a.get("pfad"):
+            return -1, "NO TUNE PLAYING"
+        n = max(1, a.get("lieder", 1))
+        if n < 2:
+            return -1, "ONLY ONE SONG IN THIS FILE"
+        rest = rest.strip()
+        if rest in ("+", "-"):
+            neu = (a["lied"] + (1 if rest == "+" else -1) - 1) % n + 1   # im Kreis
+        else:
+            try:
+                neu = int(rest)
+            except ValueError:
+                return -1, "LIED +, - OR NUMBER"
+            if not 1 <= neu <= n:
+                return -1, "NO SUCH SONG"
+        if neu == a["lied"]:
+            return None
+        self.allein_spielen(a["pfad"], neu, merken=False)
+
     def b_stern(self, rest):
         try:
             n = max(0, min(5, int(rest)))
@@ -1428,7 +1456,7 @@ class Jam:
         self.wunsch_zeigen()
         self.allein_spielen(pfad, lied)
 
-    def allein_spielen(self, pfad, lied):
+    def allein_spielen(self, pfad, lied, merken=True):
         v = self.allein.laden()
         e = self.allein.eintrag(pfad)
         try:
@@ -1442,7 +1470,8 @@ class Jam:
                     "stil": v.stil(e, lied), "modell_text": e["modell"] + " " + e["takt"]}
         else:
             laenge, info = 180.0, {"titel": pfad.rsplit("/", 1)[-1]}
-        self.allein.verlauf.append(pfad)
+        if merken:                          # beim Liedwechsel nicht: sonst
+            self.allein.verlauf.append(pfad)   # verstopft ein Stueck den Verlauf
         a = dict(info, pfad=pfad, lied=lied, datei=datei, laenge=laenge, ab=0.0, los=None)
         if self.e.get("klang") == "ORIGINAL":
             if sidton_finden():

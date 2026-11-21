@@ -1,4 +1,4 @@
-# MERIDIAN 816 – Emulator (Stufe 1 / Stage 1, 0.8.5)
+# MERIDIAN 816 – Emulator (Stufe 1 / Stage 1, 0.8.6)
 
 **[Deutsch](#deutsch) · [English](#english)**
 
@@ -23,7 +23,7 @@ Die ROMs in `roms/` sind aus `rom/*.hex` des Core-Repos umgewandelt (Stand 30.10
 
 ausführen. Python 3.8+ (MSYS2-Paket oder python.org) wird nur für den Netzdienst DRAHT gebraucht (Laufwerk 3, `NET`, HORIZONT-Apps); ohne Python läuft der Emulator, im Fenstertitel steht dann „D3: AUS (kein Python 3)“.
 Beim Start per Doppelklick im Explorer muss `SDL2.dll` (aus `C:\msys64\mingw64\bin`) neben `meridian.exe` liegen. Bei Problemen mit dem Dienst: Protokoll `%TEMP%\meridian-draht.log`, `meridian.exe --dienst-test` und `MERIDIAN_PYTHON=C:\pfad\python.exe`; bei „keine Netzverbindung“ in WEATHER/RADIO: `python dienst/netztest.py` (zeigt, ob DNS, IPv6, Firewall oder Zertifikate hängen).
-Unter Windows laufen alle Apps des Netzdienstes wie am Mac (WEATHER, NEWS, ATLAS, RADIO, SID JAM, PICTURES/PAINT, Drucken); `make` baut dafür `bildwandler.exe`, `sidkern.exe`, `sidton.exe` und `mpg123.exe` nach `dienst/`.
+Unter Windows laufen alle Apps des Netzdienstes wie am Mac (WEATHER, NEWS, ATLAS, RADIO, SID JAM, PICTURES/PAINT, KATALOG, Drucken, LEITUNG); `make` baut dafür `bildwandler.exe`, `sidkern.exe`, `sidton.exe` und `mpg123.exe` nach `dienst/`.
 
 **macOS / Linux:**
 
@@ -97,7 +97,7 @@ genau zum alten ROM passen; beim mitgelieferten neuen ROM bleibt das ausgeschalt
 | PINSEL-Look: Glanz (SHINE), Leuchten (GLOW), Tusche (INK: Kontur und Schlagschatten) | fertig, nach `pinsel.sv` |
 | ORGEL (Ton): 4 Synthesestimmen (SID-Wellenformen, Sync, Ring, Hüllkurve), Filter, 8 Samplekanäle mit Crusher/Verzerrung, Echo, Stereo | fertig, rechnet im 1-MHz-Takt nach `orgel.sv`; Ausgabe 48 kHz über SDL |
 | BOTE: `.MER`-Programme laden (Chip-RAM und Zusatzspeicher, Autostart per NMI), Module (`.MOD`, schreibgeschützt ab `$40:0000`, überstehen Resets), Speicherstand `.sav` als Laufwerk 0 | fertig, getestet mit MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER, STARKSTROM |
-| DRAHT: Fenster Bank `$FD` als gemeinsame Datei, daran der echte Netzdienst 2.0 `dienst/draht.py` (Python 3): **Laufwerk 3 = Ordner**, `NET`-Befehle | fertig für macOS, Linux und Windows (Windows: Python 3.8+ nötig, siehe „Windows (MSYS2)“) |
+| DRAHT: Fenster Bank `$FD` als gemeinsame Datei, daran der echte Netzdienst 2.4 `dienst/draht.py` (Python 3): **Laufwerk 3 = Ordner**, `NET`-Befehle | fertig für macOS, Linux und Windows (Windows: Python 3.8+ nötig, siehe „Windows (MSYS2)“) |
 
 Offen: `FETCH` (braucht das BOTE-Postfach, meldet im Simulationsmodus selbst „only on the MiSTer“).
 
@@ -130,8 +130,8 @@ Wetter, Nachrichten und Radio mit `CERTIFICATE_VERIFY_FAILED`. Der Emulator gibt
 steht beim Start in der Konsole („DRAHT: HTTPS-Zertifikate: …“); hat Python gar keine, kommt dort ein Hinweis mit der Abhilfe
 (`Install Certificates.command` im Python-Ordner oder `pip3 install certifi`).
 
-**HORIZONT (Modul) und seine Apps:** Der Emulator bringt den Netzdienst 2.0 (HORIZONT 2.4) mit. Damit laufen
-WEATHER (und das Wetter in der Menüleiste), NEWS, ATLAS (Browser-Seite und Downloads), TAKTSTOCK (Netz-Jam), RADIO (auch Mitschnitt „REC“, 32 kHz/12 Bit), SID JAM (siehe unten), PICTURES und PAINT mit JPG/PNG/GIF und das **Drucken** (siehe unten). Die Browser-Seite ist nur auf
+**HORIZONT (Modul) und seine Apps:** Der Emulator bringt den Netzdienst 2.4 (für HORIZONT bis 2.6) mit. Damit laufen
+WEATHER (und das Wetter in der Menüleiste), NEWS, ATLAS (Browser-Seite und Downloads), TAKTSTOCK (Netz-Jam), RADIO (auch Mitschnitt „REC“, 32 kHz/12 Bit), SID JAM (siehe unten), PICTURES und PAINT mit JPG/PNG/GIF, **KATALOG** (Software von retro-modern.net, mit Bewertung; „Load“ legt sie auf Laufwerk 3, ZIP-Pakete werden ausgepackt), das **Drucken** (siehe unten) und die **LEITUNG** für Online-Spiele wie HANSE&HIEBE (rohe TCP-Verbindung samt SID-Musik über reSID). Die Browser-Seite ist nur auf
 diesem Rechner erreichbar: `http://localhost:8816/` (`--ablage-port N`, 0 = aus; `MERIDIAN_ABLAGE_LAN=1` öffnet sie wie am MiSTer fürs Heimnetz).
 Der Dienst baut von selbst keine Verbindung ins Netz auf; er geht nur ins Netz, wenn BASIC einen `NET`-Befehl schickt oder eine App geöffnet wird
 (Wetter, Nachrichten und Sender holen die Apps selbst, siehe `dienst/LIESMICH.txt` und die Hinweise zum Datenschutz im Netzdienst-Paket). Alle `NET`-Befehle (`GET`, `CONNECT`, `LISTEN`, `SEND`, `FILES`, `DISK` …) und Laufwerk 3 gehen ebenfalls.
@@ -155,6 +155,7 @@ Beispiele für FILE und DRAW (`C64GAMES.FIL`, `MERIDIAN.DRW`) legt der Emulator 
 
     sdcard/files/                     Laufwerk 3 (DIR 3, LOAD "X",3, SAVE "X",3); hier liegt auch RADIO.TXT (eigene Sender: Name|http://adresse)
     sdcard/wetter.json                Ort und Einstellungen von WEATHER (entsteht beim ersten Öffnen der App)
+    sdcard/katalog.json               Gerätekennung (zufällig), Sprache und eigene Bewertungen von KATALOG (entsteht beim ersten Öffnen der App)
     sdcard/HVSC/hvsc_index.tsv.gz     Index für SID JAM allein (HVSC #85); legt der Emulator selbst dorthin, wenn er fehlt, und überschreibt nie
     sdcard/HVSC/hvsc.zip              die HVSC selbst: Ordner `C64Music` zippen (`zip -r hvsc.zip C64Music`, Einträge müssen mit `C64Music/` beginnen,
                                       nur Verfahren „gespeichert“ oder „deflate“); `hvsc.zip.liste` entsteht beim ersten Start daneben
@@ -180,7 +181,7 @@ oder gehört dem Benutzer.
 |---|---|---|---|
 | MERIDIAN-Core (`MERIDIAN_MiSTer`) | ROMs `roms/*.rom` (aus `rom/*.hex`, Core 20261030); Hardware-Vorlage für den Emulator (`rtl/*.sv`); `dienst/draht.py` und `dienst/disk.py` (unverändert aus `tools/`) | <https://github.com/Retro-Modern/MERIDIAN_MiSTer> | GPL-3.0-or-later, © 2026 retro-modern.net |
 | Microsoft BASIC M6502 1.1 | BASIC im ROM `roms/basic.rom` (über den Core) | Core-Repo, `basic/quelle/` | MIT, © Microsoft Corporation |
-| Netzdienst 2.0 (31.10.2026) | `dienst/*.py` (Laufwerk 3, `NET`, Wetter, Nachrichten, Radio, ATLAS, TAKTSTOCK, SID JAM, Bilder, Drucken), `dienst/zeichensatz.bin`, `dienst/hvsc_index.tsv.gz`, Beispiele `dienst/beispiele/` (`C64GAMES.FIL`, `MERIDIAN.DRW`) | <https://retro-modern.net/en/downloads.html> (Paket „MERIDIAN network“) | © 2026 retro-modern.net, kostenlos nutzbar und unverändert weitergebbar (siehe `dienst/LIESMICH.txt`) |
+| Netzdienst 2.4 (19.11.2026) | `dienst/*.py` (Laufwerk 3, `NET`, Wetter, Nachrichten, Radio, ATLAS, TAKTSTOCK, SID JAM, Bilder, Drucken, KATALOG, LEITUNG), `dienst/zeichensatz.bin`, `dienst/hvsc_index.tsv.gz`, Beispiele `dienst/beispiele/` (`C64GAMES.FIL`, `MERIDIAN.DRW`) | <https://retro-modern.net/en/downloads.html> (Paket „MERIDIAN network“) | © 2026 retro-modern.net, kostenlos nutzbar und unverändert weitergebbar (siehe `dienst/LIESMICH.txt`) |
 | `bildwandler` | Quelle für JPG/PNG/GIF → BMP/PDF (`tools/bildwandler/`), vom Netzdienst gerufen | im Netzdienst-Paket (`bildwandler-quelle/`) | © 2026 retro-modern.net |
 | stb_image, stb_image_write | Bilder lesen und schreiben in `bildwandler` (`tools/bildwandler/stb/`) | <https://github.com/nothings/stb> (Stand `003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5`), Sean Barrett | Public Domain oder MIT, nach Wahl |
 | `sidkern` | 6510-/C64-Umgebung, liefert den SID-Registerstrom für SID JAM (`tools/sidkern/`) | von retro-modern.net bereitgestellter Quelltext | GPL-3.0-or-later, © 2026 retro-modern.net |
@@ -220,7 +221,7 @@ The ROMs in `roms/` are converted from `rom/*.hex` of the core repository (as of
 
 Python 3.8+ (the MSYS2 package or python.org) is only needed for the DRAHT network service (drive 3, `NET`, HORIZONT apps); without it the emulator still runs and the window title shows "D3: AUS (kein Python 3)".
 When started by double-click from Explorer, `SDL2.dll` (from `C:\msys64\mingw64\bin`) must sit next to `meridian.exe`. If the service has problems: log `%TEMP%\meridian-draht.log`, `meridian.exe --dienst-test` and `MERIDIAN_PYTHON=C:\path\python.exe`; for "no connection" in WEATHER/RADIO: `python dienst/netztest.py` (shows whether DNS, IPv6, firewall or certificates are the problem).
-On Windows all apps of the network service work as on the Mac (WEATHER, NEWS, ATLAS, RADIO, SID JAM, PICTURES/PAINT, printing); `make` builds `bildwandler.exe`, `sidkern.exe`, `sidton.exe` and `mpg123.exe` into `dienst/` for them.
+On Windows all apps of the network service work as on the Mac (WEATHER, NEWS, ATLAS, RADIO, SID JAM, PICTURES/PAINT, KATALOG, printing, LEITUNG); `make` builds `bildwandler.exe`, `sidkern.exe`, `sidton.exe` and `mpg123.exe` into `dienst/` for them.
 
 **macOS / Linux:**
 
@@ -293,7 +294,7 @@ exactly match the old ROM; with the bundled new ROM it stays off; `--no-module-f
 | PINSEL look: shine (SHINE), glow (GLOW), ink (INK: outline and drop shadow) | done, after `pinsel.sv` |
 | ORGEL (sound): 4 synthesis voices (SID waveforms, sync, ring, envelope), filter, 8 sample channels with crusher/distortion, echo, stereo | done, runs at the 1 MHz clock after `orgel.sv`; output 48 kHz via SDL |
 | BOTE: load `.MER` programs (chip RAM and expansion memory, autostart via NMI), modules (`.MOD`, write-protected from `$40:0000`, survive resets), saved state `.sav` as drive 0 | done, tested with MONTEST, KRANTEST, DOSTEST, LADETEST, KOBOLDE, GRAFIK, BALLETT, COUNTER, STARKSTROM |
-| DRAHT: window bank `$FD` as a shared file, with the real network service 2.0 `dienst/draht.py` (Python 3) attached: **drive 3 = folder**, `NET` commands | done for macOS, Linux and Windows (Windows: needs Python 3.8+, see "Windows (MSYS2)") |
+| DRAHT: window bank `$FD` as a shared file, with the real network service 2.4 `dienst/draht.py` (Python 3) attached: **drive 3 = folder**, `NET` commands | done for macOS, Linux and Windows (Windows: needs Python 3.8+, see "Windows (MSYS2)") |
 
 Open: `FETCH` (needs the BOTE mailbox; in simulation mode it reports "only on the MiSTer" itself).
 
@@ -326,8 +327,8 @@ weather, news and radio with `CERTIFICATE_VERIFY_FAILED`. The emulator therefore
 is shown in the console at startup ("DRAHT: HTTPS-Zertifikate: …"); if Python has none at all, a hint with the remedy appears there
 (`Install Certificates.command` in the Python folder, or `pip3 install certifi`).
 
-**HORIZONT (module) and its apps:** the emulator ships network service 2.0 (HORIZONT 2.4). With it these work:
-WEATHER (and the weather in the menu bar), NEWS, ATLAS (browser page and downloads), TAKTSTOCK (network jam), RADIO (including recording "REC", 32 kHz/12 bit), SID JAM (see below), PICTURES and PAINT with JPG/PNG/GIF, and **printing** (see below). The browser page is reachable only on
+**HORIZONT (module) and its apps:** the emulator ships network service 2.4 (for HORIZONT up to 2.6). With it these work:
+WEATHER (and the weather in the menu bar), NEWS, ATLAS (browser page and downloads), TAKTSTOCK (network jam), RADIO (including recording "REC", 32 kHz/12 bit), SID JAM (see below), PICTURES and PAINT with JPG/PNG/GIF, **KATALOG** (software from retro-modern.net, with ratings; "Load" puts it on drive 3, ZIP packages are unpacked), **printing** (see below) and the **LEITUNG** for online games such as HANSE&HIEBE (a plain TCP connection, with the SID music through reSID). The browser page is reachable only on
 this computer: `http://localhost:8816/` (`--ablage-port N`, 0 = off; `MERIDIAN_ABLAGE_LAN=1` opens it to the home network as on the MiSTer).
 The service never opens a network connection on its own; it goes online only when BASIC sends a `NET` command or an app is opened
 (the apps fetch weather, news and stations themselves, see `dienst/LIESMICH.txt` and the privacy notes in the network service package). All `NET` commands (`GET`, `CONNECT`, `LISTEN`, `SEND`, `FILES`, `DISK` …) and drive 3 work as well.
@@ -351,6 +352,7 @@ The emulator puts examples for FILE and DRAW (`C64GAMES.FIL`, `MERIDIAN.DRW`) in
 
     sdcard/files/                     drive 3 (DIR 3, LOAD "X",3, SAVE "X",3); RADIO.TXT lives here too (own stations: name|http://address)
     sdcard/wetter.json                location and settings of WEATHER (created when the app is first opened)
+    sdcard/katalog.json               random device ID, language and your own ratings of KATALOG (created when the app is first opened)
     sdcard/HVSC/hvsc_index.tsv.gz     index for SID JAM stand-alone (HVSC #85); the emulator puts it there itself if it is missing, and never overwrites it
     sdcard/HVSC/hvsc.zip              the HVSC itself: zip the folder `C64Music` (`zip -r hvsc.zip C64Music`, entries must start with `C64Music/`,
                                       only method "stored" or "deflate"); `hvsc.zip.liste` is created next to it at the first start
@@ -376,7 +378,7 @@ or belongs to the user.
 |---|---|---|---|
 | MERIDIAN core (`MERIDIAN_MiSTer`) | ROMs `roms/*.rom` (from `rom/*.hex`, core 20261030); hardware reference for the emulator (`rtl/*.sv`); `dienst/draht.py` and `dienst/disk.py` (unchanged from `tools/`) | <https://github.com/Retro-Modern/MERIDIAN_MiSTer> | GPL-3.0-or-later, © 2026 retro-modern.net |
 | Microsoft BASIC M6502 1.1 | BASIC in the ROM `roms/basic.rom` (via the core) | core repository, `basic/quelle/` | MIT, © Microsoft Corporation |
-| Network service 2.0 (31 Oct 2026) | `dienst/*.py` (drive 3, `NET`, weather, news, radio, ATLAS, TAKTSTOCK, SID JAM, pictures, printing), `dienst/zeichensatz.bin`, `dienst/hvsc_index.tsv.gz`, examples `dienst/beispiele/` (`C64GAMES.FIL`, `MERIDIAN.DRW`) | <https://retro-modern.net/en/downloads.html> (package "MERIDIAN network") | © 2026 retro-modern.net, free to use and to pass on unchanged (see `dienst/LIESMICH.txt`) |
+| Network service 2.4 (19 Nov 2026) | `dienst/*.py` (drive 3, `NET`, weather, news, radio, ATLAS, TAKTSTOCK, SID JAM, pictures, printing, KATALOG, LEITUNG), `dienst/zeichensatz.bin`, `dienst/hvsc_index.tsv.gz`, examples `dienst/beispiele/` (`C64GAMES.FIL`, `MERIDIAN.DRW`) | <https://retro-modern.net/en/downloads.html> (package "MERIDIAN network") | © 2026 retro-modern.net, free to use and to pass on unchanged (see `dienst/LIESMICH.txt`) |
 | `bildwandler` | source for JPG/PNG/GIF → BMP/PDF (`tools/bildwandler/`), called by the network service | in the network service package (`bildwandler-quelle/`) | © 2026 retro-modern.net |
 | stb_image, stb_image_write | reading and writing images in `bildwandler` (`tools/bildwandler/stb/`) | <https://github.com/nothings/stb> (revision `003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5`), Sean Barrett | public domain or MIT, your choice |
 | `sidkern` | 6510/C64 environment, delivers the SID register stream for SID JAM (`tools/sidkern/`) | source code provided by retro-modern.net | GPL-3.0-or-later, © 2026 retro-modern.net |

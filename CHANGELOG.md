@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.8.6
+- **Network service updated from 2.0 to 2.4** (package "MERIDIAN network" of 19 Nov 2026 from retro-modern.net; the package is 2.4, it contains the 2.3 changes). The Python files in `dienst/` are the unchanged
+  files of the package, no emulator patches:
+  - **New `katalog_dienst.py` (2.3, 2.4): the app KATALOG** (HORIZONT 2.5/2.6). Fetches the list of software from retro-modern.net only when the app asks (at most every 5 minutes), checks each download
+    against its SHA-256 and puts it on drive 3; ZIP packages are unpacked (entries under `games/MERIDIAN/` go to the `sdcard` folder, paths with `..` are refused). German or English descriptions;
+    star ratings (one per device) - the service keeps a random device ID, the language and your ratings in `sdcard/katalog.json`; the server stores only a hash of the ID.
+  - **New `leitung_dienst.py` (2.1, 2.2): LEITUNG**, a plain TCP connection for online games with their own binary protocol (HANSE&HIEBE, `HANSE.MER`): bytes pass through unchanged (no line conversion,
+    no Telnet filtering). Commands `AUF host:port`, `ZU`, `STAND`, `KLANG`; it connects only on an explicit `AUF`. `KLANG` plays the game's SID tunes with reSID through `sidton`.
+  - `draht.py`: request types 17 (KATALOG) and 25 (LEITUNG); the LEITUNG shares the window area `$0300-$0FFF` with the network jam and the radio spectrum (whoever comes last stops the others).
+  - `sidjam_dienst.py` (2.1, 2.4): SID JAM can switch between the songs of a SID file (`LIED +`, `LIED -`, `LIED n`, solo only); the "(+/-)" hint shows only where the keys work.
+  - `tools/sidton/sidton.cpp`: new option `--sofort` (writes the sound out after every longer pause in the stream), which LEITUNG/KLANG needs; `make` rebuilds `dienst/sidton` as usual.
+    The `tools/sidkern` sources were already identical to the package.
+  - `dienst/LIESMICH.txt` and the sources table in the README name the new version; the README lists KATALOG and LEITUNG among the apps and `sdcard/katalog.json` among the files.
+- **Not changed:** the emulator code (`src/`) except the version number. The new service needs nothing from it: the DRAHT window, the shared-file mechanism and the Windows shims from 0.8.4b are enough.
+  `dienst/netztest.py` (emulator only) stays.
+- Tested on Linux (SDL 2.30, full `make` without warnings): `meridian --dienst-test` = "Selbsttest OK"; and a test client that talks to the service through the window file like the emulator does:
+  `NET HELP`; LEITUNG against a local echo server (`AUF`, state `$0300` = 2, bytes `00 FF 0D 0A E4 80` arrive unchanged in the input ring, bytes sent from the output ring arrive at the server unchanged, `ZU`,
+  unknown command gives an error status); `KLANG` starts `sidton` (found through `SIDJAM_SIDTON`); KATALOG and SID JAM `LIED` answer without crashing, the service keeps running.
+- **Not tested:** the actual KATALOG list and downloads (the test machine could not reach retro-modern.net - only the error path "No connection to retro-modern.net" was seen), a real HANSE&HIEBE game
+  server, the sound of `KLANG`, and Windows/macOS with the new files. The paths the new modules use (`subprocess` pipes in threads, `select` only on sockets, `SIDJAM_SIDTON` set by the Windows wrapper
+  for `sidton.exe`) look fine for Windows, but were not run there.
+- One harmless log line after `ZU`: "LEITUNG: 3 CONNECTION LOST: Bad file descriptor". The old connection thread notices the closed socket; the state is not written to the window any more (guarded by the run number), so the program sees "closed" (0).
+
 ## 0.8.5
 - **Fix: background gradient (GLANZ/SHINE on colour 0) was hidden behind a bitmap-16 layer B with a palette bank.** In the STARKSTROM demo (wireframe, bobs and
   sunset parts) layer A is off and layer B is a 16-colour bitmap with palette bank 3 (`B_OPT = $30`). The emulator computed the palette index as `bank * 16 + pixel value` and

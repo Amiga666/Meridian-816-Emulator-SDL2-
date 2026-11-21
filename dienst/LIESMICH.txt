@@ -1,4 +1,4 @@
-Netzdienst fuer den Emulator (MERIDIAN 816 Netzdienst, Version 2.0 vom 31.10.2026, (c) 2026 retro-modern.net,
+Netzdienst fuer den Emulator (MERIDIAN 816 Netzdienst, Version 2.4 vom 19.11.2026, (c) 2026 retro-modern.net,
 kostenlos nutzen und unveraendert weitergeben). Die Python-Dateien hier sind unveraendert aus dem Netzwerk-Paket des Cores;
 der Emulator startet draht.py selbst (Python 3.8+ noetig) und gibt ihm das DRAHT-Fenster (Bank $FD) als gemeinsame Datei.
 
@@ -7,7 +7,7 @@ wetter_dienst.py, nachrichten_dienst.py   Apps WEATHER und NEWS (und das Wetter 
 radio_dienst.py, radio_bild.py, zeichensatz.bin   App RADIO (MP3-Dekoder: bin/mpg123, vom Emulator mit make gebaut; sonst ffmpeg)
 ablage_seite.py   Browser-Seite fuer ATLAS und Dateien hoch/runterladen (hier nur auf diesem Rechner: http://localhost:8816/)
 takjam_dienst.py  Netz-Jam von TAKTSTOCK
-sidjam_dienst.py, hvsc_index.py, orgelwandler.py, disk.py   SID JAM u. a. - SID JAM braucht die Programme sidkern und sidton (make baut sie aus tools/sidkern und tools/sidton nach dienst/)
+sidjam_dienst.py, hvsc_index.py, orgelwandler.py, disk.py   SID JAM (ab 2.1 mit Liedwechsel LIED +/-/n) u. a. - SID JAM braucht die Programme sidkern und sidton (make baut sie aus tools/sidkern und tools/sidton nach dienst/)
                   fuer den Mac, die nicht beiliegen (im Paket nur als ARM-Programme fuer den MiSTer); es laeuft hier nicht.
 
 hvsc_index.tsv.gz  Verzeichnis der HVSC #85 fuer SID JAM allein; der Emulator legt es nach sdcard/HVSC/, wenn dort keines liegt.
@@ -15,3 +15,10 @@ hvsc_index.tsv.gz  Verzeichnis der HVSC #85 fuer SID JAM allein; der Emulator le
 druck_dienst.py, bild_dienst.py   Drucken (PDF auf Laufwerk 3 oder IPP) und Bilder fuer HORIZONT 2.4; bild_dienst und druck_dienst rufen
                   bildwandler auf (hier: dienst/bildwandler, mit make aus tools/bildwandler gebaut).
 beispiele/        C64GAMES.FIL und MERIDIAN.DRW fuer FILE und DRAW; der Emulator legt sie nach sdcard/files, wenn sie dort fehlen.
+
+katalog_dienst.py   App KATALOG (HORIZONT 2.5/2.6): Liste und Downloads von retro-modern.net (nur wenn die App fragt), Pruefung per SHA-256,
+                  Dateien nach Laufwerk 3, ZIP-Pakete ausgepackt; Bewertungen. Merkt sich Geraetekennung, Sprache und Bewertungen in katalog.json
+                  (hier: sdcard/katalog.json).
+leitung_dienst.py   LEITUNG: rohe TCP-Verbindung fuer Online-Spiele (HANSE&HIEBE) und deren SID-Musik (KLANG ueber sidton, ab 2.2). Verbindet nur auf
+                  ausdruecklichen Befehl (AUF host:port); sidton muss dafuer mit make gebaut sein (dienst/sidton).
+netztest.py       nur im Emulator (nicht im Netzdienst-Paket): Netzdiagnose fuer WEATHER und RADIO.
