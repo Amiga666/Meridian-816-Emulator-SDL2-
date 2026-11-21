@@ -8,11 +8,16 @@
 //  zum Pruefen 16 Bit.
 //
 //    sidkern X.sid -s 1 -t 180 | sidton [-r 22050] [--s16|--fein] [--fast|--interp]
-//                                       [--modell 6581|8580] [--verstaerkung 1.0]
+//                                       [--modell 6581|8580] [--verstaerkung 1.0] [--sofort]
 //
 //  --fein: je Sample zwei Bytes fuer zwei Samplekanaele der ORGEL - das obere
 //  (bei Lautstaerke 63) und den Rest darunter in 1/63 (bei Lautstaerke 1).
 //  Zusammen gut 14 Bit statt 8, ohne das Rauschen von 8-Bit-Samples.
+//
+//  --sofort: nach jeder laengeren Pause im Strom (ab 1000 Zyklen, also je
+//  Bild der Abspielroutine) den Ton gleich hinausschreiben. Fuer Stroeme, die
+//  in Echtzeit kommen (HANSE&HIEBE ueber die LEITUNG): sonst haengt der Ton
+//  um einen ganzen stdio-Puffer hinterher und kommt in Brocken.
 //
 //  Die Zeit des Tons beginnt beim ersten Datensatz des Stroms (mit --ab also
 //  an der Stelle, ab der sidkern liefert): Sample k gehoert zur Liedzeit
@@ -78,7 +83,7 @@ static int json_anzahl_sids(const std::string &j)
 int main(int argc, char **argv)
 {
     double rate = 22050;
-    bool s16 = false, fein = false;
+    bool s16 = false, fein = false, sofort = false;
     // Vorgabe: reSID "fast" mit 4-facher Rate, danach ein eigenes FIR-Filter
     // herunter - auf dem MiSTer-ARM schafft SAMPLE_RESAMPLE keine Echtzeit
     sampling_method art = SAMPLE_FAST;
@@ -91,6 +96,7 @@ int main(int argc, char **argv)
         if (a == "-r" && i + 1 < argc) rate = atof(argv[++i]);
         else if (a == "--s16") s16 = true;
         else if (a == "--fein") fein = true;
+        else if (a == "--sofort") sofort = true;
         else if (a == "--fast") { art = SAMPLE_FAST; ueber = 1; }
         else if (a == "--interp") { art = SAMPLE_INTERPOLATE; ueber = 1; }
         else if (a == "--resample") { art = SAMPLE_RESAMPLE; ueber = 1; }
@@ -241,6 +247,7 @@ int main(int argc, char **argv)
         int v = lies_byte();
         if (v < 0) goto ende;
         if (!takten((cycle_count)d)) return 0;
+        if (sofort && d >= 1000 && fflush(stdout) != 0) return 0;
         int chip = (r >> 5) & 3, reg = r & 0x1f;
         if (chip < chips && reg <= 24) sid[chip].write((reg8)reg, (reg8)v);
     }

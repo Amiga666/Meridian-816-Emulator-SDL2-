@@ -1,2 +1,2 @@
 #pragma once
-#define MERIDIAN_EMU_VERSION "0.8.5"
+#define MERIDIAN_EMU_VERSION "0.8.6"
